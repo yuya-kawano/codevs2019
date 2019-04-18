@@ -192,7 +192,7 @@ public:
 			*check |= (p << (x * 4));
 
 			p *= 4;
-			map[x] |= (block_line << p);
+			map[x] |= ((ull)block_line << p);
 		}
 
 		return true;
@@ -314,6 +314,8 @@ public:
 	{
 		int cnt = 0;
 
+		int max_y = 0;
+
 		for (int x = 0; x < WIDTH; x++)
 		{
 			for (int y = 0; y < HEIGHT; y++)
@@ -321,12 +323,13 @@ public:
 				int n = ((map[x] >> (y * 4)) & mask4);
 				if (n > 0)
 				{
+					max_y = MAX(max_y, y);
 					cnt++;
 				}
 			}
 		}
 
-		return WIDTH * HEIGHT - cnt;
+		return WIDTH * HEIGHT - cnt + ((HEIGHT - max_y) * 1000);
 	}
 };
 
@@ -387,7 +390,7 @@ void Input()
 		{
 			for (int x = 0; x < WIDTH; x++)
 			{
-				int n;
+				ull n;
 				cin >> n;
 				info.state.map[x] |= (n << ((BOTTOM - y) * 4));
 			}
