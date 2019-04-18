@@ -76,6 +76,7 @@ const int WIDTH = 10;
 const int HEIGHT = 16;
 const int BOTTOM = HEIGHT - 1;
 const int BLOCK_NUM = 500;
+const int OJAMA = 11;
 const u64 mask4 = 0b1111;
 
 
@@ -166,11 +167,6 @@ public:
 	bool DropLine(int x, int block_line, ull*check)
 	{
 		if (block_line == 0) return 0;
-
-
-		int k = bsr(67);
-
-		int ret = 0;
 
 		*check &= ~((ull)mask4 << (x * 4ull));
 
@@ -310,6 +306,31 @@ public:
 		cout << endl;
 	}
 
+	bool Ojama()
+	{
+		for (int x = 0; x < 16; x++)
+		{
+			if (map[x] == 0)
+			{
+				map[x] |= OJAMA;
+			}
+			else
+			{
+				int p = bsr(map[x]);
+				p /= 4;
+				p += 1;
+
+				if (p >= HEIGHT)
+					return false;
+
+				p *= 4;
+				map[x] |= ((ull)OJAMA << p);
+			}
+		}
+
+		return true;
+	}
+
 	double GetScore()
 	{
 		int cnt = 0;
@@ -425,6 +446,8 @@ int main()
 			for (int rot = 0; rot < 4; rot++)
 			{
 				State clone = _infos[0].state;
+
+				if (_infos[0].ojama >= 10) clone.Ojama();
 
 				if (clone.Put(_blocks[_turn], pos, rot) >= 0)
 				{
