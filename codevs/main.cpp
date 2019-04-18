@@ -102,22 +102,22 @@ public:
 class State
 {
 public:
-	u64 map[WIDTH]; //ã___‰º
+	ull map[WIDTH]; //ã___‰º
 
 	int Get(int x, int y)
 	{
-		return ((ull)map[x] >> ((BOTTOM - y) * 4) & mask4);
+		return (map[x] >> (y * 4) & mask4);
 	}
 
 	void SetBit(int x, int y, int n)
 	{
-		int shift = ((BOTTOM - y) * 4);
+		int shift = (y * 4);
 		map[x] &= (~(mask4 << shift));
 		map[x] |= (n << shift);
 	}
 
 
-	void Put(int block, int pos, int rot)
+	int Put(int block, int pos, int rot)
 	{
 		ASSERT(0 <= rot && rot < 4);
 		ASSERT(0 <= pos && pos < WIDTH - 1);
@@ -156,96 +156,151 @@ public:
 		if ((l & mask4) == 0) l >>= 4;
 		if ((r & mask4) == 0) r >>= 4;
 
-		int check = 0;
+		ull check = -1;
 		DropLine(pos, l, &check);
 		DropLine(pos + 1, r, &check);
+		return Submit(check);
 	}
 
-	int DropLine(int x, int line, int *check)
+	int DropLine(int x, int block_line, ull*check)
 	{
-		if (line == 0) return 0;
+		if (block_line == 0) return 0;
 
 		int ret = 0;
 
+		*check &= ~((ull)mask4 << (x * 4ull));
+
 		if (map[x] == 0)
 		{
-			map[x] |= line;
-
-			*check |= (BOTTOM << (x * 4));
+			map[x] |= block_line;
 		}
 		else
 		{
-			int p = bsr((ull)map[x]);
+			int p = bsr(map[x]);
 			p /= 4;
 			p += 1;
 
-			*check |= ((BOTTOM - p) << 4);
+			*check |= (p << (x * 4));
 
 			p *= 4;
-			map[x] |= (line << p);
+			map[x] |= (block_line << p);
 		}
 	}
 
-	void Submit(int first_check)
+	int Submit(ull first_check)
 	{
-		bool is_update = false;
+		int chein = 0;
 
-		int check = first_check;
-		int next = first_check;
+		ull check = first_check;
 
-		static Point q[WIDTH * HEIGHT] = {};
-		int q_cnt = 0;
-
-		for (int x = 0; x < WIDTH; x++)
+		while (true)
 		{
-			int bottom = ((check >> (x * 4)) & mask4);
-			if (bottom > 0)
+			ull next = -1;
+
+			static Point q[WIDTH * HEIGHT];
+			int q_cnt = 0;
+
+			ull erase_bit[WIDTH] = {};
+
+			for (int x = 0; x < WIDTH; x++)
 			{
-				for (int y = bottom; y >= 0; y--)
+				int bottom = ((check >> (x * 4)) & mask4);
+				if (bottom < mask4)
 				{
-					for (int d = 0; d < 8; d++)
+					for (int y = bottom; y < HEIGHT; y++)
 					{
-						int dx = x;
-						int dy = y;
-						int sum = Get(x, y);
-
-						while (true)
+						for (int d = 0; d < 8; d++)
 						{
-							dx += _dx[d];
-							dy += _dy[d];
+							int dx = x;
+							int dy = y;
+							int sum = Get(x, y);
 
-							if (!IsIn(dx, dy)) break;
-
-							int n = Get(dx, dy);
-
-							if (n == 0) break;
-
-							sum += n;
-
-							if (sum > 10) break;
-
-							if (sum == 10)
+							while (true)
 							{
-								int qx = dx;
-								int qy = dy;
-								while (true)
+								dx += _dx[d];
+								dy += _dy[d];
+
+								if (!IsIn(dx, dy)) break;
+
+								int n = Get(dx, dy);
+
+								if (n == 0) break;
+
+								sum += n;
+
+								if (sum > 10) break;
+
+								if (sum == 10)
 								{
-									q[q_cnt].x = qx;
-									q[q_cnt].y = qy;
-									q_cnt++;
+									int qx = dx;
+									int qy = dy;
+									while (true)
+									{
+										q[q_cnt].x = qx;
+										q[q_cnt].y = qy;
+										q_cnt++;
 
-									if (qx == x && qy == y) break;
+										int next_bottom = ((next >> (qx * 4)) & mask4);
+										if (next_bottom > qy)
+										{
+											next_bottom = qy;
+											next &= ~((ull)mask4 << (qx * 4));
+											next |= (qy << (qx * 4));
+										}
 
-									qx -= _dx[d];
-									qy -= _dy[d];
+										if (qx == x && qy == y) break;
+
+										qx -= _dx[d];
+										qy -= _dy[d];
+									}
+									break;
 								}
-								break;
 							}
 						}
 					}
 				}
 			}
+
+			if (q_cnt == 0) break;
+
+			for (int i = 0; i < q_cnt; i++)
+			{
+				int x = q[i].x;
+				int y = q[i].y;
+
+				int shift = (y * 4);
+				map[x] &= (~(mask4 << shift));
+				erase_bit[x] |= (mask4 << shift);
+			}
+
+			for (int x = 0; x < WIDTH; x++)
+			{
+				map[x] = _pext_u64(map[x], ~erase_bit[x]);
+			}
+
+			chein++;
+			check = next;
 		}
+
+		return chein;
+	}
+
+	void Print()
+	{
+		for (int y = HEIGHT - 1; y >= 0; y--)
+		{
+			for (int x = 0; x < WIDTH; x++)
+			{
+				cout << Get(x, y);
+				cout << " ";
+			}
+			cout << endl;
+		}
+		cout << endl;
+	}
+
+	void Drop()
+	{
 	}
 };
 
@@ -337,22 +392,22 @@ int main()
 	//state.Put(block1, 6, 3);
 	//state.Put(block2, 6, 3);
 
-	state.SetBit(0, 15, 1);
+	state.SetBit(0, 0, 1);
 
-	state.SetBit(1, 15, 3);
-	state.SetBit(1, 14, 5);
-	state.SetBit(1, 13, 7);
-	state.SetBit(1, 12, 8);
+	state.SetBit(1, 0, 3);
+	state.SetBit(1, 1, 5);
+	state.SetBit(1, 2, 7);
+	state.SetBit(1, 3, 8);
 
-	state.SetBit(2, 15, 3);
-	state.SetBit(2, 14, 1);
+	state.SetBit(2, 0, 3);
+	state.SetBit(2, 1, 1);
 
-	state.SetBit(3, 15, 1);
+	state.SetBit(3, 0, 1);
 
 	int block = (5 | (5 << 4) | (0 << 8) | (9 << 12));
 	state.Put(block, 0, 0);
 
-	for (int y = 0; y < HEIGHT; y++)
+	for (int y = HEIGHT - 1; y >= 0; y--)
 	{
 		for (int x = 0; x < WIDTH; x++)
 		{
