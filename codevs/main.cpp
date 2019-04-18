@@ -58,12 +58,12 @@ typedef unsigned long long ull;
 typedef unsigned long u64;
 
 #ifdef _MSC_VER
-inline unsigned long __builtin_clzll(unsigned long x) { unsigned long r; _BitScanReverse64(&r, x); return 63 - r; }
+inline unsigned long __builtin_clzll(ull x) { unsigned long r; _BitScanReverse64(&r, x); return 63 - r; }
 #else
-inline unsigned long __builtin_clzll(unsigned long x) { return hidword(x) ? __builtin_clz(hidword(x)) : __builtin_clz(lodword(x)) + 32; }
+inline unsigned long __builtin_clzll(ull x) { return hidword(x) ? __builtin_clz(hidword(x)) : __builtin_clz(lodword(x)) + 32; }
 #endif // _MSC_VER
 
-inline unsigned int bsr(unsigned long v) { return 63 - __builtin_clzll(v); } // 最上位の1は下から数えて何ビットめか？
+inline unsigned int bsr(ull v) { return 63 - __builtin_clzll(v); } // 最上位の1は下から数えて何ビットめか？
 
 
 using namespace std;
@@ -157,14 +157,18 @@ public:
 		if ((r & mask4) == 0) r >>= 4;
 
 		ull check = -1;
-		DropLine(pos, l, &check);
-		DropLine(pos + 1, r, &check);
+		if (!DropLine(pos, l, &check)) return -1;
+		if (!DropLine(pos + 1, r, &check)) return -1;
+
 		return Submit(check);
 	}
 
-	int DropLine(int x, int block_line, ull*check)
+	bool DropLine(int x, int block_line, ull*check)
 	{
 		if (block_line == 0) return 0;
+
+
+		int k = bsr(67);
 
 		int ret = 0;
 
@@ -180,11 +184,18 @@ public:
 			p /= 4;
 			p += 1;
 
+			if (block_line >= 16 && p >= HEIGHT - 1)
+				return false;
+			if (block_line < 16 && p >= HEIGHT)
+				return false;
+
 			*check |= (p << (x * 4));
 
 			p *= 4;
 			map[x] |= (block_line << p);
 		}
+
+		return true;
 	}
 
 	int Submit(ull first_check)
@@ -299,12 +310,41 @@ public:
 		cout << endl;
 	}
 
-	void Drop()
+	double GetScore()
 	{
+		int cnt = 0;
+
+		for (int x = 0; x < WIDTH; x++)
+		{
+			for (int y = 0; y < HEIGHT; y++)
+			{
+				int n = ((map[x] >> (y * 4)) & mask4);
+				if (n > 0)
+				{
+					cnt++;
+				}
+			}
+		}
+
+		return WIDTH * HEIGHT - cnt;
 	}
 };
 
+class Info
+{
+public:
+	int turn;
+	int time;
+	int ojama;
+	int skill;
+	int score;
 
+	State state;
+};
+
+int _blocks[BLOCK_NUM];
+int _turn;
+Info _infos[2];
 
 void Init()
 {
@@ -313,9 +353,17 @@ void Init()
 
 	for (int i = 0; i < BLOCK_NUM; i++)
 	{
-		cin >> _ >> _;
-		cin >> _ >> _;
+		int b[4];
+		cin >> b[0] >> b[1];
+		cin >> b[2] >> b[3];
 		cin >> end;
+
+		_blocks[i] = 0;
+		for (int j = 0; j < 4; j++)
+		{
+			_blocks[i] |= (b[j] << (j * 4));
+		}
+
 		ASSERT(end == "END");
 	}
 }
@@ -323,42 +371,32 @@ void Init()
 
 void Input()
 {
-	int turn;
-	int time;
-	int ojama;
-	int skill;
-	int score;
-	int n;
-	string end;
+	cin >> _turn;
 
-	cin >> turn;
-	cin >> time;
-	cin >> ojama;
-	cin >> skill;
-	cin >> score;
-	for (int y = 0; y < HEIGHT; y++)
+	for (int p = 0; p < 2; p++)
 	{
-		for (int x = 0; x < WIDTH; x++)
-		{
-			cin >> n;
-		}
-	}
-	cin >> end;
-	ASSERT(end == "END");
+		Info& info = _infos[p];
+		cin >> info.time;
+		cin >> info.ojama;
+		cin >> info.skill;
+		cin >> info.score;
 
-	cin >> time;
-	cin >> ojama;
-	cin >> skill;
-	cin >> score;
-	for (int y = 0; y < HEIGHT; y++)
-	{
-		for (int x = 0; x < WIDTH; x++)
+		memset(info.state.map, 0, sizeof(info.state.map));
+
+		for (int y = 0; y < HEIGHT; y++)
 		{
-			cin >> n;
+			for (int x = 0; x < WIDTH; x++)
+			{
+				int n;
+				cin >> n;
+				info.state.map[x] |= (n << ((BOTTOM - y) * 4));
+			}
 		}
+
+		string end;
+		cin >> end;
+		ASSERT(end == "END");
 	}
-	cin >> end;
-	ASSERT(end == "END");
 }
 
 
@@ -371,55 +409,33 @@ int main()
 	State state;
 	memset(state.map, 0, sizeof(state.map));
 
-	//int block1 = (1 | (2 << 4) | (3 << 8) | (4 << 12));
-	//int block2 = (1 | (2 << 4) | (0 << 8) | (4 << 12));
-
-	//1 2
-	//3 4
-
-	//1 2
-	//  4
-
-	//state.Put(block1, 0, 0);
-	//state.Put(block2, 0, 0);
-
-	//state.Put(block1, 2, 1);
-	//state.Put(block2, 2, 1);
-
-	//state.Put(block1, 4, 2);
-	//state.Put(block2, 4, 2);
-
-	//state.Put(block1, 6, 3);
-	//state.Put(block2, 6, 3);
-
-	state.SetBit(0, 0, 1);
-
-	state.SetBit(1, 0, 3);
-	state.SetBit(1, 1, 5);
-	state.SetBit(1, 2, 7);
-	state.SetBit(1, 3, 8);
-
-	state.SetBit(2, 0, 3);
-	state.SetBit(2, 1, 1);
-
-	state.SetBit(3, 0, 1);
-
-	int block = (5 | (5 << 4) | (0 << 8) | (9 << 12));
-	state.Put(block, 0, 0);
-
-	for (int y = HEIGHT - 1; y >= 0; y--)
-	{
-		for (int x = 0; x < WIDTH; x++)
-		{
-			cout << state.Get(x, y);
-			cout << " ";
-		}
-		cout << endl;
-	}
-
-	/*while (true)
+	while (true)
 	{
 		Input();
-		cout << "2 0" << endl;
-	}*/
+
+		double max_score = -DBL_MAX;
+		int max_pos = 0;
+		int max_rot = 0;
+
+		for (int pos = 0; pos < WIDTH - 1; pos++)
+		{
+			for (int rot = 0; rot < 4; rot++)
+			{
+				State clone = _infos[0].state;
+
+				if (clone.Put(_blocks[_turn], pos, rot) >= 0)
+				{
+					double score = clone.GetScore();
+					if (score > max_score)
+					{
+						max_score = score;
+						max_pos = pos;
+						max_rot = rot;
+					}
+				}
+			}
+		}
+
+		cout << max_pos << " " << max_rot << endl;
+	}
 }
