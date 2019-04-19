@@ -105,6 +105,14 @@ class State
 public:
 	ull map[WIDTH]; //è„___â∫
 
+	int firist_pos;
+	int firist_rot;
+	double score;
+	bool operator < (const State& obj) const
+	{
+		return (score < obj.score);
+	}
+
 	int Get(int x, int y)
 	{
 		return (map[x] >> (y * 4) & mask4);
@@ -113,7 +121,7 @@ public:
 	void SetBit(int x, int y, int n)
 	{
 		int shift = (y * 4);
-		map[x] &= (~(mask4 << shift));
+		map[x] &= (~((ull)mask4 << shift));
 		map[x] |= (n << shift);
 	}
 
@@ -194,6 +202,33 @@ public:
 		return true;
 	}
 
+	int GetDropY(int x)
+	{
+		if (map[x] == 0)
+		{
+			return 0;
+		}
+		else
+		{
+			int p = bsr(map[x]);
+			p /= 4;
+			p += 1;
+			return p;
+		}
+	}
+
+	void DropBlock(int x, int drop_y, int number)
+	{
+		if (drop_y == 0)
+		{
+			map[x] |= number;
+		}
+		else
+		{
+			map[x] |= ((ull)number << (drop_y * 4));
+		}
+	}
+
 	int Submit(ull first_check)
 	{
 		int chein = 0;
@@ -221,6 +256,9 @@ public:
 							int dx = x;
 							int dy = y;
 							int sum = Get(x, y);
+
+							if (sum > 10) continue;
+							if (sum == 0) continue;
 
 							while (true)
 							{
@@ -270,15 +308,19 @@ public:
 
 			if (q_cnt == 0) break;
 
+			Print();
+
 			for (int i = 0; i < q_cnt; i++)
 			{
 				int x = q[i].x;
 				int y = q[i].y;
 
 				int shift = (y * 4);
-				map[x] &= (~(mask4 << shift));
+				map[x] &= (~((ull)mask4 << shift));
 				erase_bit[x] |= (mask4 << shift);
 			}
+
+			Print();
 
 			for (int x = 0; x < WIDTH; x++)
 			{
@@ -308,7 +350,7 @@ public:
 
 	bool Ojama()
 	{
-		for (int x = 0; x < 16; x++)
+		for (int x = 0; x < WIDTH; x++)
 		{
 			if (map[x] == 0)
 			{
@@ -333,24 +375,34 @@ public:
 
 	double GetScore()
 	{
-		int cnt = 0;
-
-		int max_y = 0;
+		int max_chain = 0;
 
 		for (int x = 0; x < WIDTH; x++)
 		{
-			for (int y = 0; y < HEIGHT; y++)
+			int drop_y = GetDropY(x);
+			if (drop_y >= HEIGHT)
 			{
-				int n = ((map[x] >> (y * 4)) & mask4);
-				if (n > 0)
+				continue;
+			}
+
+			ull check = -1;
+			check &= ~((ull)mask4 << (x * 4));
+			check |= (drop_y << (x * 4));
+
+			State state = *this;
+			for (int n = 0; n <= 9; n++)
+			{
+				state.DropBlock(x, drop_y, n);
+				
+				int chain = state.Submit(check);
+				if (max_chain < chain)
 				{
-					max_y = MAX(max_y, y);
-					cnt++;
+					max_chain = chain;
 				}
 			}
 		}
 
-		return WIDTH * HEIGHT - cnt + ((HEIGHT - max_y) * 1000);
+		return max_chain;
 	}
 };
 
@@ -373,7 +425,6 @@ Info _infos[2];
 void Init()
 {
 	string end;
-	int _;
 
 	for (int i = 0; i < BLOCK_NUM; i++)
 	{
@@ -396,6 +447,7 @@ void Init()
 void Input()
 {
 	cin >> _turn;
+	if (_turn == -1) exit(1);
 
 	for (int p = 0; p < 2; p++)
 	{
@@ -430,38 +482,114 @@ int main()
 
 	Init();
 
-	State state;
-	memset(state.map, 0, sizeof(state.map));
-
 	while (true)
 	{
 		Input();
+		time_point<system_clock> start_time = system_clock::now();
 
-		double max_score = -DBL_MAX;
+		//ojama
+		for (int p = 0; p < 2; p++)
+		{
+			if (_infos[p].ojama >= 10)
+			{
+				_infos[p].state.Ojama();
+				_infos[p].ojama -= 10;;
+			}
+		}
+
+		//òAçΩî≠ìÆ
+		int max_chain = 0;
 		int max_pos = 0;
 		int max_rot = 0;
-
 		for (int pos = 0; pos < WIDTH - 1; pos++)
 		{
 			for (int rot = 0; rot < 4; rot++)
 			{
 				State clone = _infos[0].state;
-
-				if (_infos[0].ojama >= 10) clone.Ojama();
-
-				if (clone.Put(_blocks[_turn], pos, rot) >= 0)
+				int chain = clone.Put(_blocks[_turn], pos, rot);
+				cout << "êØ" << chain << endl;
+				if (max_chain < chain)
 				{
-					double score = clone.GetScore();
-					if (score > max_score)
+					max_chain = chain;
+					max_pos = pos;
+					max_rot = rot;
+				}
+			}
+		}
+		cerr << "turn:" << _turn << "  max:" << max_chain << endl;
+		if (max_chain >= 10)
+		{
+			cout << max_pos << " " << max_rot << endl;
+			continue;
+		}
+
+		//íTçı
+		const int MAX_TURN = 10;
+		priority_queue<State> q[MAX_TURN + 1];
+		q[0].push(_infos[0].state);
+
+		while (true)
+		{
+			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
+			if (ms >= 1000) break;
+
+			for (int t = 0; t < MAX_TURN; t++)
+			{
+				if (q[t].size() == 0) continue;
+
+				State state = q[t].top();
+				q[t].pop();
+
+				for (int pos = 0; pos < WIDTH - 1; pos++)
+				{
+					for (int rot = 0; rot < 4; rot++)
 					{
-						max_score = score;
-						max_pos = pos;
-						max_rot = rot;
+						State clone = state;
+
+						if (t == 0)
+						{
+							clone.firist_pos = pos;
+							clone.firist_rot = rot;
+						}
+
+						clone.Put(_blocks[_turn + t], pos, rot);
+						clone.score = clone.GetScore();
+						q[t + 1].push(clone);
 					}
 				}
 			}
 		}
 
-		cout << max_pos << " " << max_rot << endl;
+		State best = q[MAX_TURN].top();
+		cerr << best.score << endl;
+		cout << best.firist_pos << " " << best.firist_rot << endl;
+
+
+		//double max_score = -DBL_MAX;
+		//int max_pos = 0;
+		//int max_rot = 0;
+
+		//for (int pos = 0; pos < WIDTH - 1; pos++)
+		//{
+		//	for (int rot = 0; rot < 4; rot++)
+		//	{
+		//		State clone = _infos[0].state;
+
+		//		if (_infos[0].ojama >= 10) clone.Ojama();
+
+		//		if (clone.Put(_blocks[_turn], pos, rot) >= 0)
+		//		{
+		//			double score = clone.GetScore();
+		//			if (score > max_score)
+		//			{
+		//				max_score = score;
+		//				max_pos = pos;
+		//				max_rot = rot;
+		//			}
+		//		}
+		//	}
+		//}
+
+		//cout << max_pos << " " << max_rot << endl;
 	}
 }
