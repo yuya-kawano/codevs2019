@@ -23,8 +23,9 @@
 #include <sstream>
 #include <set>
 #include <unordered_set>
-#include <immintrin.h>
+#ifdef _MSC_VER
 #include <intrin.h>
+#endif
 
 
 int MAX(int a, int b) { return (((a) > (b)) ? (a) : (b)); }
@@ -60,11 +61,9 @@ typedef unsigned char byte;
 
 #ifdef _MSC_VER
 inline unsigned long __builtin_clzll(ull x) { unsigned long r; _BitScanReverse64(&r, x); return 63 - r; }
-#else
-inline unsigned long __builtin_clzll(ull x) { return hidword(x) ? __builtin_clz(hidword(x)) : __builtin_clz(lodword(x)) + 32; }
 #endif // _MSC_VER
 
-inline unsigned int bsr(ull v) { return 63 - __builtin_clzll(v); } // 最上位の1は下から数えて何ビットめか？
+inline unsigned int bsr(ull v) { return 63 - __builtin_clzll(v); } // 最上位の1は下から数えて何ビット目か？
 
 
 using namespace std;
@@ -233,6 +232,17 @@ public:
 		}
 	}
 
+	ull pext(ull val, ll mask)
+	{
+		ull res = 0;
+		for (ull bb = 1ull; mask; bb += bb) {
+			if (val & (mask & -mask))
+				res |= bb;
+			mask &= mask - 1;
+		}
+		return res;
+	}
+
 	int Submit(ull first_check)
 	{
 		int chein = 0;
@@ -289,7 +299,7 @@ public:
 
 			for (int x = 0; x < WIDTH; x++)
 			{
-				map[x] = _pext_u64(map[x], ~erase_bit[x]);
+				map[x] = pext(map[x], ~erase_bit[x]);
 			}
 
 			//Print();
@@ -608,7 +618,11 @@ int main()
 			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
 			if (_turn <= 10)
 			{
-				if (ms >= 10000) break;
+				if (ms >= 10000 - (_turn * 1000)) break;
+			}
+			else if (_infos[0].time < 10000)
+			{
+				if (ms >= 100) break;
 			}
 			else
 			{
