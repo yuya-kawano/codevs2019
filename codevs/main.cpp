@@ -115,7 +115,7 @@ public:
 
 	int Get(int x, int y)
 	{
-		return (map[x] >> (y * 4) & mask4);
+		return ((map[x] >> (y * 4)) & mask4);
 	}
 
 	void SetBit(int x, int y, int n)
@@ -253,53 +253,16 @@ public:
 					{
 						for (int d = 0; d < 8; d++)
 						{
-							int dx = x;
-							int dy = y;
-							int sum = Get(x, y);
+							int dx = x + _dx[d];
+							int dy = y + _dy[d];
+							if (!IsIn(dx, dy)) continue;
 
-							if (sum > 10) continue;
-							if (sum == 0) continue;
+							int sum = Get(x, y) + Get(dx, dy);
 
-							while (true)
+							if (sum == 10)
 							{
-								dx += _dx[d];
-								dy += _dy[d];
-
-								if (!IsIn(dx, dy)) break;
-
-								int n = Get(dx, dy);
-
-								if (n == 0) break;
-
-								sum += n;
-
-								if (sum > 10) break;
-
-								if (sum == 10)
-								{
-									int qx = dx;
-									int qy = dy;
-									while (true)
-									{
-										q[q_cnt].x = qx;
-										q[q_cnt].y = qy;
-										q_cnt++;
-
-										int next_bottom = ((next >> (qx * 4)) & mask4);
-										if (next_bottom > qy)
-										{
-											next_bottom = qy;
-											next &= ~((ull)mask4 << (qx * 4));
-											next |= (qy << (qx * 4));
-										}
-
-										if (qx == x && qy == y) break;
-
-										qx -= _dx[d];
-										qy -= _dy[d];
-									}
-									break;
-								}
+								SubmitSub(q, &q_cnt, &next, x, y);
+								SubmitSub(q, &q_cnt, &next, dx, dy);
 							}
 						}
 					}
@@ -307,8 +270,6 @@ public:
 			}
 
 			if (q_cnt == 0) break;
-
-			Print();
 
 			for (int i = 0; i < q_cnt; i++)
 			{
@@ -320,18 +281,34 @@ public:
 				erase_bit[x] |= (mask4 << shift);
 			}
 
-			Print();
+			//Print();
 
 			for (int x = 0; x < WIDTH; x++)
 			{
 				map[x] = _pext_u64(map[x], ~erase_bit[x]);
 			}
 
+			//Print();
+
 			chein++;
 			check = next;
 		}
 
 		return chein;
+	}
+
+	void SubmitSub(Point *q, int *q_cnt, ull *next, int x, int y)
+	{
+		q[*q_cnt].x = x;
+		q[*q_cnt].y = y;
+		(*q_cnt)++;
+		int next_bottom = (((*next) >> (x * 4)) & mask4);
+		if (next_bottom > y)
+		{
+			next_bottom = y;
+			(*next) &= ~((ull)mask4 << (x * 4));
+			(*next) |= (y << (x * 4));
+		}
 	}
 
 	void Print()
@@ -375,6 +352,8 @@ public:
 
 	double GetScore()
 	{
+		double score = 0.0;
+
 		int max_chain = 0;
 
 		for (int x = 0; x < WIDTH; x++)
@@ -402,7 +381,32 @@ public:
 			}
 		}
 
-		return max_chain;
+		score += max_chain;
+
+		//max_y
+		int max_y = 0;
+		for (int y = 0; y < HEIGHT; y++)
+		{
+			for (int x = 0; x < WIDTH; x++)
+			{
+				int n = Get(x, y);
+				if (n > 0)
+				{
+					max_y = MAX(max_y, y);
+				}
+			}
+		}
+
+		if (max_y >= HEIGHT - 1)
+		{
+			score -= 10000;
+		}
+		else if (max_y >= HEIGHT - 2)
+		{
+			score -= 1000;
+		}
+
+		return score;
 	}
 };
 
@@ -487,6 +491,8 @@ int main()
 		Input();
 		time_point<system_clock> start_time = system_clock::now();
 
+		const int NEED_CHAIN = 11;
+
 		//ojama
 		for (int p = 0; p < 2; p++)
 		{
@@ -507,7 +513,7 @@ int main()
 			{
 				State clone = _infos[0].state;
 				int chain = clone.Put(_blocks[_turn], pos, rot);
-				cout << "¯" << chain << endl;
+				//cout << "šš " << chain << " šš" << endl;
 				if (max_chain < chain)
 				{
 					max_chain = chain;
@@ -517,17 +523,38 @@ int main()
 			}
 		}
 		cerr << "turn:" << _turn << "  max:" << max_chain << endl;
-		if (max_chain >= 10)
+		if (max_chain >= NEED_CHAIN)
 		{
 			cout << max_pos << " " << max_rot << endl;
 			continue;
 		}
+
+		//skill
+		if (_infos[0].skill >= 80 && max_pos <= 5)
+		{
+			int five_cnt = 0;
+			for (int y = 0; y < HEIGHT; y++)
+			{
+				for (int x = 0; x < WIDTH; x++)
+				{
+					if (_infos[0].state.Get(x, y) == 5)
+						five_cnt++;
+				}
+			}
+			if (five_cnt >= 1)
+			{
+				cout << "S" << endl;
+				continue;
+			}
+		}
+
 
 		//’Tõ
 		const int MAX_TURN = 10;
 		priority_queue<State> q[MAX_TURN + 1];
 		q[0].push(_infos[0].state);
 
+		int loop = 0;
 		while (true)
 		{
 			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
@@ -552,17 +579,34 @@ int main()
 							clone.firist_rot = rot;
 						}
 
-						clone.Put(_blocks[_turn + t], pos, rot);
-						clone.score = clone.GetScore();
-						q[t + 1].push(clone);
+						int chain = clone.Put(_blocks[_turn + t], pos, rot);
+						loop++;
+						if (chain >= 0)
+						{
+							clone.score = state.score;
+							clone.score += clone.GetScore();
+							if (chain >= NEED_CHAIN)
+							{
+								clone.score += (MAX_TURN - t) * 1000;
+							}
+							q[t + 1].push(clone);
+						}
 					}
 				}
 			}
 		}
 
-		State best = q[MAX_TURN].top();
-		cerr << best.score << endl;
-		cout << best.firist_pos << " " << best.firist_rot << endl;
+		if (q[MAX_TURN].size() == 0)
+		{
+			cout << "0 0" << endl;
+		}
+		else
+		{
+			State best = q[MAX_TURN].top();
+			cerr << "loop:" << loop << endl;
+			cerr << "score:" << best.score << endl;
+			cout << best.firist_pos << " " << best.firist_rot << endl;
+		}
 
 
 		//double max_score = -DBL_MAX;
