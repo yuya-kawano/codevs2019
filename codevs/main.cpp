@@ -27,6 +27,7 @@
 #include <intrin.h>
 #endif
 
+//#define PRINT_RENSA
 
 int MAX(int a, int b) { return (((a) > (b)) ? (a) : (b)); }
 int MIN(int a, int b) { return (((a) < (b)) ? (a) : (b)); }
@@ -125,7 +126,7 @@ public:
 	{
 		int shift = (y * 4);
 		map[x] &= (~((ull)mask4 << shift));
-		map[x] |= (n << shift);
+		map[x] |= ((ull)n << shift);
 	}
 
 
@@ -196,7 +197,7 @@ public:
 			if (block_line < 16 && p >= HEIGHT)
 				return false;
 
-			*check |= (p << (x * 4));
+			*check |= ((ull)p << (x * 4ull));
 
 			p *= 4;
 			map[x] |= ((ull)block_line << p);
@@ -232,16 +233,31 @@ public:
 		}
 	}
 
-	ull pext(ull val, ll mask)
+	ull pext(ull val, ull mask)
 	{
-		ull res = 0;
-		for (ull bb = 1ull; mask; bb += bb) {
-			if (val & (mask & -mask))
-				res |= bb;
-			mask &= mask - 1;
+		int shift = 0;
+		ull ret = 0;
+		for (int i = 0; i < 16; i++)
+		{
+			if ((mask >> (i * 4)) & 1)
+			{
+				ret |= (((val >> (i * 4)) & mask4) << shift);
+				shift += 4;
+			}
 		}
-		return res;
+		return ret;
 	}
+
+	//ull pext(ull val, ll mask)
+	//{
+	//	ull res = 0;
+	//	for (ull bb = 1; mask; bb += bb) {
+	//		if (val & mask & -mask)
+	//			res |= bb;
+	//		mask &= mask - 1;
+	//	}
+	//	return res;
+	//}
 
 	int Submit(ull first_check)
 	{
@@ -292,17 +308,21 @@ public:
 
 				int shift = (y * 4);
 				map[x] &= (~((ull)mask4 << shift));
-				erase_bit[x] |= (mask4 << shift);
+				erase_bit[x] |= ((ull)mask4 << shift);
 			}
 
-			//Print();
+#ifdef PRINT_RENSA
+			Print();
+#endif
 
 			for (int x = 0; x < WIDTH; x++)
 			{
 				map[x] = pext(map[x], ~erase_bit[x]);
 			}
 
-			//Print();
+#ifdef PRINT_RENSA
+			Print();
+#endif
 
 			chein++;
 			check = next;
@@ -532,7 +552,9 @@ int main()
 			{
 				State clone = _infos[0].state;
 				int chain = clone.Put(_blocks[_turn], pos, rot);
-				//cout << "šš " << chain << " šš" << endl;
+#ifdef PRINT_RENSA
+				cout << "šš " << chain << " šš" << endl;
+#endif
 				if (max_chain < chain)
 				{
 					max_chain = chain;
