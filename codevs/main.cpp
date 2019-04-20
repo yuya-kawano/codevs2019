@@ -56,6 +56,7 @@ typedef unsigned int uint;
 typedef long long ll;
 typedef unsigned long long ull;
 typedef unsigned long u64;
+typedef unsigned char byte;
 
 #ifdef _MSC_VER
 inline unsigned long __builtin_clzll(ull x) { unsigned long r; _BitScanReverse64(&r, x); return 63 - r; }
@@ -108,8 +109,8 @@ class State
 public:
 	ull map[WIDTH]; //è„___â∫
 
-	int firist_pos;
-	int firist_rot;
+	array<byte, MAX_TURN> pos_history;
+	array<byte, MAX_TURN> rot_history;
 	double score;
 	bool operator < (const State& obj) const
 	{
@@ -492,6 +493,8 @@ int main()
 
 	Init();
 
+	memset(_prev_state.map, -1, sizeof(_prev_state.map));
+
 	while (true)
 	{
 		Input();
@@ -551,6 +554,54 @@ int main()
 		priority_queue<State> q[MAX_TURN + 1];
 		q[0].push(_infos[0].state);
 
+		//history
+		bool is_match = true;
+		for (int x = 0; x < WIDTH; x++)
+		{
+			for (int y = 0; y < HEIGHT; y++)
+			{
+				if (_infos[0].state.Get(x, y) != _prev_state.Get(x, y))
+				{
+					is_match = false;
+					break;
+				}
+			}
+			if (!is_match) break;
+		}
+		if (is_match)
+		{
+			State history_state = _infos[0].state;
+			for (int t = 0; t < MAX_TURN - 1; t++)
+			{
+				int chain = history_state.Put(_blocks[(_turn - 1) + (t + 1)], _prev_state.pos_history[t + 1], _prev_state.rot_history[t + 1]);
+				history_state.score += history_state.GetScore();
+				if (chain >= NEED_CHAIN)
+				{
+					history_state.score += (MAX_TURN - t) * 1000;
+				}
+				history_state.pos_history[t] = _prev_state.pos_history[t + 1];
+				history_state.rot_history[t] = _prev_state.rot_history[t + 1];
+			}
+			for (int pos = 0; pos < WIDTH - 1; pos++)
+			{
+				for (int rot = 0; rot < 4; rot++)
+				{
+					State clone = history_state;
+					clone.pos_history[MAX_TURN - 1] = pos;
+					clone.rot_history[MAX_TURN - 1] = rot;
+					int chain = clone.Put(_blocks[_turn + (MAX_TURN - 1)], pos, rot);
+					clone.score += clone.GetScore();
+					if (chain >= NEED_CHAIN)
+					{
+						clone.score += (MAX_TURN - 1) * 1000;
+					}
+					q[MAX_TURN].push(clone);
+				}
+			}
+			cerr << "prev_score:" << q[MAX_TURN].top().score << endl;
+		}
+
+		//loop
 		int loop = 0;
 		while (true)
 		{
@@ -577,17 +628,13 @@ int main()
 					{
 						State clone = state;
 
-						if (t == 0)
-						{
-							clone.firist_pos = pos;
-							clone.firist_rot = rot;
-						}
+						clone.pos_history[t] = pos;
+						clone.rot_history[t] = rot;
 
 						int chain = clone.Put(_blocks[_turn + t], pos, rot);
 						loop++;
 						if (chain >= 0)
 						{
-							clone.score = state.score;
 							clone.score += clone.GetScore();
 							if (chain >= NEED_CHAIN)
 							{
@@ -630,10 +677,12 @@ int main()
 
 			cerr << "loop:" << loop << endl;
 			cerr << "score:" << best.score << endl;
-			cout << best.firist_pos << " " << best.firist_rot << endl;
+			cout << (int)best.pos_history[0] << " " << (int)best.rot_history[0] << endl;
 
 			_prev_state = _infos[0].state;
-			_prev_state.Put(_blocks[_turn], best.firist_pos, best.firist_rot);
+			_prev_state.Put(_blocks[_turn], best.pos_history[0], best.rot_history[0]);
+			_prev_state.pos_history = best.pos_history;
+			_prev_state.rot_history = best.rot_history;
 		}
 	}
 }
