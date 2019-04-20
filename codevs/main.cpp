@@ -79,6 +79,9 @@ const int BLOCK_NUM = 500;
 const int OJAMA = 11;
 const u64 mask4 = 0b1111;
 
+const int MAX_TURN = 15;
+
+int CHAIN_OJAMA_TABLE[] = { 0,1,2,3,4,6,9,13,18,25,33,45,60,79,105,138,181,237,310,405,528,689,897,1168,1521,1979,2575,3350,4358,5667,7370,9583,12461,16202,21066,27389,35609,46295,60186,78245,101722,132242,171919,223498,290551,377720,491040,638356,829867, };
 
 bool IsIn(int x, int y)
 {
@@ -354,7 +357,7 @@ public:
 	{
 		double score = 0.0;
 
-		int max_chain = 0;
+		double max_chain_score = 0;
 
 		for (int x = 0; x < WIDTH; x++)
 		{
@@ -374,14 +377,16 @@ public:
 				state.DropBlock(x, drop_y, n);
 				
 				int chain = state.Submit(check);
-				if (max_chain < chain)
+				double chain_score = chain;
+				chain_score += ((abs((WIDTH / 2.0) - x)) / 10.0);
+				if (max_chain_score < chain_score)
 				{
-					max_chain = chain;
+					max_chain_score = chain_score;
 				}
 			}
 		}
 
-		score += max_chain;
+		score += max_chain_score;
 
 		//max_y
 		int max_y = 0;
@@ -425,6 +430,7 @@ public:
 int _blocks[BLOCK_NUM];
 int _turn;
 Info _infos[2];
+State _prev_state;
 
 void Init()
 {
@@ -491,7 +497,7 @@ int main()
 		Input();
 		time_point<system_clock> start_time = system_clock::now();
 
-		const int NEED_CHAIN = 11;
+		const int NEED_CHAIN = 12;
 
 		//ojama
 		for (int p = 0; p < 2; p++)
@@ -529,28 +535,19 @@ int main()
 			continue;
 		}
 
-		//skill
-		if (_infos[0].skill >= 80 && max_pos <= 5)
+		if (_infos[0].ojama >= 10)
 		{
-			int five_cnt = 0;
-			for (int y = 0; y < HEIGHT; y++)
+			cerr << "SOUSAI" << endl;
+			int prev_line_cnt = _infos[0].ojama / 10;
+			int next_line_cnt = (_infos[0].ojama - CHAIN_OJAMA_TABLE[max_chain]) / 10;
+			if (prev_line_cnt > next_line_cnt)
 			{
-				for (int x = 0; x < WIDTH; x++)
-				{
-					if (_infos[0].state.Get(x, y) == 5)
-						five_cnt++;
-				}
-			}
-			if (five_cnt >= 1)
-			{
-				cout << "S" << endl;
+				cout << max_pos << " " << max_rot << endl;
 				continue;
 			}
 		}
 
-
 		//’Tõ
-		const int MAX_TURN = 10;
 		priority_queue<State> q[MAX_TURN + 1];
 		q[0].push(_infos[0].state);
 
@@ -558,7 +555,14 @@ int main()
 		while (true)
 		{
 			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
-			if (ms >= 1000) break;
+			if (_turn <= 10)
+			{
+				if (ms >= 10000) break;
+			}
+			else
+			{
+				if (ms >= 1000) break;
+			}
 
 			for (int t = 0; t < MAX_TURN; t++)
 			{
@@ -603,37 +607,33 @@ int main()
 		else
 		{
 			State best = q[MAX_TURN].top();
+
+			//skill
+			if (_infos[0].skill >= 80 && best.score <= 1000)
+			{
+				int five_cnt = 0;
+				for (int y = 0; y < HEIGHT; y++)
+				{
+					for (int x = 0; x < WIDTH; x++)
+					{
+						if (_infos[0].state.Get(x, y) == 5)
+							five_cnt++;
+					}
+				}
+				if (five_cnt >= 1)
+				{
+					cerr << "SKILL" << endl;
+					cout << "S" << endl;
+					continue;
+				}
+			}
+
 			cerr << "loop:" << loop << endl;
 			cerr << "score:" << best.score << endl;
 			cout << best.firist_pos << " " << best.firist_rot << endl;
+
+			_prev_state = _infos[0].state;
+			_prev_state.Put(_blocks[_turn], best.firist_pos, best.firist_rot);
 		}
-
-
-		//double max_score = -DBL_MAX;
-		//int max_pos = 0;
-		//int max_rot = 0;
-
-		//for (int pos = 0; pos < WIDTH - 1; pos++)
-		//{
-		//	for (int rot = 0; rot < 4; rot++)
-		//	{
-		//		State clone = _infos[0].state;
-
-		//		if (_infos[0].ojama >= 10) clone.Ojama();
-
-		//		if (clone.Put(_blocks[_turn], pos, rot) >= 0)
-		//		{
-		//			double score = clone.GetScore();
-		//			if (score > max_score)
-		//			{
-		//				max_score = score;
-		//				max_pos = pos;
-		//				max_rot = rot;
-		//			}
-		//		}
-		//	}
-		//}
-
-		//cout << max_pos << " " << max_rot << endl;
 	}
 }
