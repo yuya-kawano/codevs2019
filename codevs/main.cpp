@@ -28,6 +28,7 @@
 #endif
 
 //#define PRINT_RENSA
+#define SPEED_MODE
 
 int MAX(int a, int b) { return (((a) > (b)) ? (a) : (b)); }
 int MIN(int a, int b) { return (((a) < (b)) ? (a) : (b)); }
@@ -640,7 +641,11 @@ int main()
 			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
 			if (_turn <= 10)
 			{
+#ifdef SPEED_MODE
+				if (ms >= 1000) break;
+#else
 				if (ms >= 10000 - (_turn * 1000)) break;
+#endif
 			}
 			else if (_infos[0].time < 10000)
 			{
