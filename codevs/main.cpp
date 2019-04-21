@@ -79,9 +79,14 @@ const int HEIGHT = 16;
 const int BOTTOM = HEIGHT - 1;
 const int BLOCK_NUM = 500;
 const int OJAMA = 11;
+
+const int SKILL_GAIN = 8;
+const int SKILL_COST = 80;
+const int SKILL_MAX = 100;
+
 const u64 mask4 = 0b1111;
 
-const int MAX_TURN = 15;
+const int MAX_TURN = 8;
 
 int CHAIN_OJAMA_TABLE[] = { 0,1,2,3,4,6,9,13,18,25,33,45,60,79,105,138,181,237,310,405,528,689,897,1168,1521,1979,2575,3350,4358,5667,7370,9583,12461,16202,21066,27389,35609,46295,60186,78245,101722,132242,171919,223498,290551,377720,491040,638356,829867, };
 
@@ -110,6 +115,7 @@ class State
 public:
 	ull map[WIDTH]; //è„___â∫
 	int ojama;
+	int skill;
 
 	array<byte, MAX_TURN> pos_history;
 	array<byte, MAX_TURN> rot_history;
@@ -175,7 +181,13 @@ public:
 		if (!DropLine(pos, l, &check)) return -1;
 		if (!DropLine(pos + 1, r, &check)) return -1;
 
-		return Submit(check);
+		int chain = Submit(check);
+		if (chain >= 1)
+		{
+			skill += SKILL_GAIN;
+			if (skill > SKILL_MAX) skill = SKILL_MAX;
+		}
+		return chain;
 	}
 
 	bool DropLine(int x, int block_line, ull*check)
@@ -397,7 +409,7 @@ public:
 		return true;
 	}
 
-	int GetChainCount(int *erase_cnt = NULL)
+	int GetChainCount(int *erase_cnt = NULL, int *max_drop_x = NULL)
 	{
 		int chain_cnt = 0;
 
@@ -425,6 +437,7 @@ public:
 					chain_cnt = chain;
 					if (erase_cnt != NULL)
 					{
+						*max_drop_x = x;
 						*erase_cnt = erase;
 					}
 				}
@@ -432,6 +445,50 @@ public:
 		}
 
 		return chain_cnt;
+	}
+
+
+	int GetMaxY()
+	{
+		int max_y = 0;
+		for (int y = 0; y < HEIGHT; y++)
+		{
+			for (int x = 0; x < WIDTH; x++)
+			{
+				int n = Get(x, y);
+				if (n > 0)
+				{
+					max_y = MAX(max_y, y);
+				}
+			}
+		}
+		return max_y;
+	}
+
+	int GetYPenalty()
+	{
+		int max_y = GetMaxY();
+		if (max_y >= HEIGHT - 1)
+		{
+			return -10000;
+		}
+		else if (max_y >= HEIGHT - 2)
+		{
+			return -1000;
+		}
+		else if (max_y >= HEIGHT - 3)
+		{
+			return -100;
+		}
+		else if (max_y >= HEIGHT - 4)
+		{
+			return -10;
+		}
+		else if (max_y >= HEIGHT - 5)
+		{
+			return -1;
+		}
+		return 0;
 	}
 
 	double GetScore()
@@ -450,39 +507,33 @@ public:
 			}
 		}
 
-		int erase;
-		int chain = GetChainCount(&erase);
+		int erase = 0;
+		int max_x = 0;
+		int chain = GetChainCount(&erase, &max_x);
 
 		score += chain * 10;
+		//score += ((abs((WIDTH / 2.0) - max_x)) * 0.000001);
+
 		score += block_cnt * 0.1;
 		if (chain > 0)
 		{
 			score -= erase / (double)chain * 0.01;
 		}
 
-		//max_y
-		int max_y = 0;
-		for (int y = 0; y < HEIGHT; y++)
-		{
-			for (int x = 0; x < WIDTH; x++)
-			{
-				int n = Get(x, y);
-				if (n > 0)
-				{
-					max_y = MAX(max_y, y);
-				}
-			}
-		}
-		if (max_y >= HEIGHT - 1)
-		{
-			score -= 10000;
-		}
-		else if (max_y >= HEIGHT - 2)
-		{
-			score -= 1000;
-		}
+		score += GetYPenalty();
 
 		score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
+
+		return score;
+	}
+
+	double GetSkillScore()
+	{
+		double score = 0.0;
+
+		score += skill * 10;
+		score += GetSkillOjama() * 0.01;
+		score += GetYPenalty();
 
 		return score;
 	}
@@ -531,7 +582,6 @@ class Info
 public:
 	int turn;
 	int time;
-	int skill;
 	int score;
 
 	State state;
@@ -574,7 +624,7 @@ void Input()
 		Info& info = _infos[p];
 		cin >> info.time;
 		cin >> info.state.ojama;
-		cin >> info.skill;
+		cin >> info.state.skill;
 		cin >> info.score;
 
 		memset(info.state.map, 0, sizeof(info.state.map));
@@ -596,7 +646,7 @@ void Input()
 }
 
 
-int GetRealChain(State& state, int turn)
+int GetRealChain(State& state, int turn, int *max_pos = NULL, int *max_rot = NULL)
 {
 	int max_chain = 0;
 	for (int pos = 0; pos < WIDTH - 1; pos++)
@@ -608,6 +658,11 @@ int GetRealChain(State& state, int turn)
 			if (max_chain < chain)
 			{
 				max_chain = chain;
+				if (max_pos != NULL)
+				{
+					*max_pos = pos;
+					*max_rot = rot;
+				}
 			}
 		}
 	}
@@ -634,15 +689,28 @@ int main()
 		const int NEED_SKILL = 50;
 
 		//param
+		int max_chain = 0;
+		int max_pos = 0;
+		int max_rot = 0;
+
 		int ally_chain = _infos[0].state.GetChainCount();
+		max_chain = GetRealChain(_infos[0].state, _turn, &max_pos, &max_rot);
+		ally_chain = MAX(ally_chain, max_chain);
 		int ally_skill = _infos[0].state.GetSkillOjama();
+
 		int enemy_chain = _infos[1].state.GetChainCount();
 		int real_enemy_chain = GetRealChain(_infos[1].state, _turn);
 		enemy_chain = MAX(enemy_chain, real_enemy_chain);
 		int enemy_skill = _infos[1].state.GetSkillOjama();
 
+		bool skill_mode = false;
+
 		//skill
-		if (ally_skill >= NEED_SKILL && CHAIN_OJAMA_TABLE[ally_chain] < ally_skill && _infos[0].skill >= 80)
+		if (ally_skill >= NEED_SKILL && CHAIN_OJAMA_TABLE[ally_chain] < ally_skill && ally_chain <= SAFE_CHAIN)
+		{
+			skill_mode = true;
+		}
+		if (skill_mode && _infos[0].state.skill >= SKILL_COST)
 		{
 			cerr << "SKILL" << endl;
 			cout << "S" << endl;
@@ -659,39 +727,26 @@ int main()
 			}
 		}
 
-		//òAçΩî≠ìÆ
-		int max_chain = 0;
-		int max_pos = 0;
-		int max_rot = 0;
-		for (int pos = 0; pos < WIDTH - 1; pos++)
-		{
-			for (int rot = 0; rot < 4; rot++)
-			{
-				State clone = _infos[0].state;
-				int chain = clone.Put(_blocks[_turn], pos, rot);
-#ifdef PRINT_RENSA
-				cout << "ÅöÅö " << chain << " ÅöÅö" << endl;
-#endif
-				if (max_chain < chain)
-				{
-					max_chain = chain;
-					max_pos = pos;
-					max_rot = rot;
-				}
-			}
-		}
-		cerr << "t:" << _turn << "  m:" << max_chain << " a_:" << _infos[0].skill << " e_:" << _infos[1].skill << endl;
+		//print ifo
+		if (skill_mode)
+			cerr << "*";
+		else if (enemy_chain >= SAFE_CHAIN)
+			cerr << "+";
+		cerr << "t:" << _turn << "  m:" << max_chain << " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill << endl;
 		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
-		if ((_infos[1].skill >= 80 - 8 * 2 && max_chain >= 3 && enemy_skill >= 50 
-			&& enemy_skill >= MAX(CHAIN_OJAMA_TABLE[ally_chain], ally_skill)))
+
+		//fire
+		if ((_infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2 && max_chain >= 3 && enemy_skill >= MAX(CHAIN_OJAMA_TABLE[ally_chain], ally_skill)))
 		{
 			cerr << "SKILL_BOGAI" << endl;
 			cout << max_pos << " " << max_rot << endl;
 			continue;
 		}
 
-		if (enemy_chain <= SAFE_CHAIN)
+		int target_chain;
+		if (enemy_chain < SAFE_CHAIN && _infos[0].state.ojama < 10)
 		{
+			target_chain = KILL_CHAIN;
 			if (max_chain >= KILL_CHAIN)
 			{
 				cerr << "KILL_CHAIN" << endl;
@@ -701,6 +756,7 @@ int main()
 		}
 		else
 		{
+			target_chain = NEED_CHAIN;
 			if (max_chain >= NEED_CHAIN)
 			{
 				cerr << "ATTACK_CHAIN" << endl;
@@ -709,23 +765,6 @@ int main()
 			}
 		}
 
-		int target_chain = NEED_CHAIN;
-		if (enemy_chain <= SAFE_CHAIN)
-		{
-			target_chain = KILL_CHAIN;
-		}
-
-		//if (_infos[0].state.ojama >= 10)
-		//{
-		//	cerr << "SOUSAI" << endl;
-		//	int prev_line_cnt = _infos[0].state.ojama / 10;
-		//	int next_line_cnt = (_infos[0].state.ojama - CHAIN_OJAMA_TABLE[max_chain]) / 10;
-		//	if (prev_line_cnt > next_line_cnt)
-		//	{
-		//		cout << max_pos << " " << max_rot << endl;
-		//		continue;
-		//	}
-		//}
 
 		//íTçı
 		priority_queue<State> q[MAX_TURN + 1];
@@ -745,7 +784,7 @@ int main()
 			}
 			if (!is_match) break;
 		}
-		if (is_match)
+		if (is_match && !skill_mode)
 		{
 			State history_state = _infos[0].state;
 			for (int t = 0; t < MAX_TURN - 1; t++)
@@ -818,14 +857,27 @@ int main()
 
 						int chain = clone.Put(_blocks[_turn + t], pos, rot);
 						loop++;
-						if (chain >= 0)
+
+						if (skill_mode)
 						{
-							clone.score += clone.GetScore();
-							if (chain >= target_chain)
+							clone.score += clone.GetSkillScore();
+							if (clone.skill >= SKILL_COST)
 							{
 								clone.score += (MAX_TURN - t) * 1000;
 							}
 							q[t + 1].push(clone);
+						}
+						else
+						{
+							if (chain >= 0)
+							{
+								clone.score += clone.GetScore();
+								if (chain >= target_chain)
+								{
+									clone.score += (MAX_TURN - t) * 1000;
+								}
+								q[t + 1].push(clone);
+							}
 						}
 
 						if (clone.ojama >= 10)
