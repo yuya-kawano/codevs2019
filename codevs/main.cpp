@@ -478,6 +478,8 @@ public:
 			score -= 1000;
 		}
 
+		score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
+
 		return score;
 	}
 };
@@ -599,7 +601,7 @@ int main()
 			}
 		}
 		cerr << "turn:" << _turn << "  max:" << max_chain << endl;
-		if (max_chain >= NEED_CHAIN || (_infos[1].skill >= 60 && max_chain >= 3))
+		if (max_chain >= NEED_CHAIN || (_infos[1].skill >= 72 && max_chain >= 3))
 		{
 			cout << max_pos << " " << max_rot << endl;
 			continue;
