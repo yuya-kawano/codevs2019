@@ -260,7 +260,7 @@ public:
 	//	return res;
 	//}
 
-	int Submit(ull first_check)
+	int Submit(ull first_check, int *erase_cnt = NULL)
 	{
 		int chein = 0;
 
@@ -308,8 +308,19 @@ public:
 				int y = q[i].y;
 
 				int shift = (y * 4);
+
+				if (erase_cnt != NULL)
+				{
+					if (map[x] & ((ull)mask4 << shift))
+					{
+						(*erase_cnt)++;
+					}
+				}
+
 				map[x] &= (~((ull)mask4 << shift));
 				erase_bit[x] |= ((ull)mask4 << shift);
+
+				
 			}
 
 #ifdef PRINT_RENSA
@@ -385,11 +396,9 @@ public:
 		return true;
 	}
 
-	double GetScore()
+	void GetChainCount(int *chain_cnt, int *erase_cnt)
 	{
-		double score = 0.0;
-
-		double max_chain_score = 0;
+		*chain_cnt = 0;
 
 		for (int x = 0; x < WIDTH; x++)
 		{
@@ -403,22 +412,48 @@ public:
 			check &= ~((ull)mask4 << (x * 4));
 			check |= (drop_y << (x * 4));
 
-			State state = *this;
 			for (int n = 0; n <= 9; n++)
 			{
+				State state = *this;
 				state.DropBlock(x, drop_y, n);
-				
-				int chain = state.Submit(check);
-				double chain_score = chain;
-				chain_score += ((abs((WIDTH / 2.0) - x)) / 10.0);
-				if (max_chain_score < chain_score)
+
+				int erase = 0;
+				int chain = state.Submit(check, &erase);
+				if (*chain_cnt < chain)
 				{
-					max_chain_score = chain_score;
+					*chain_cnt = chain;
+					*erase_cnt = erase;
+				}
+			}
+		}
+	}
+
+	double GetScore()
+	{
+		double score = 0.0;
+
+		int block_cnt = 0;
+		for (int x=0; x<WIDTH; x++)
+		{
+			for (int y = 0; y < HEIGHT; y++)
+			{
+				if (Get(x, y) > 0)
+				{
+					block_cnt++;
 				}
 			}
 		}
 
-		score += max_chain_score;
+		int erase;
+		int chain;
+		GetChainCount(&chain, &erase);
+
+		score += chain * 10;
+		score += block_cnt * 0.1;
+		if (chain > 0)
+		{
+			score -= erase / (double)chain * 0.01;
+		}
 
 		//max_y
 		int max_y = 0;
@@ -433,7 +468,6 @@ public:
 				}
 			}
 		}
-
 		if (max_y >= HEIGHT - 1)
 		{
 			score -= 10000;
@@ -696,7 +730,7 @@ int main()
 		{
 			State best = q[MAX_TURN].top();
 
-			//skill
+			//skilla
 			if (_infos[0].skill >= 80 && best.score <= 1000)
 			{
 				int five_cnt = 0;
@@ -717,7 +751,7 @@ int main()
 			}
 
 			cerr << "loop:" << loop << endl;
-			cerr << "score:" << best.score << endl;
+			cerr << "score:" << fixed << setprecision(2) << best.score << endl;
 			cout << (int)best.pos_history[0] << " " << (int)best.rot_history[0] << endl;
 
 			_prev_state = _infos[0].state;
