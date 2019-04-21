@@ -109,6 +109,7 @@ class State
 {
 public:
 	ull map[WIDTH]; //è„___â∫
+	int ojama;
 
 	array<byte, MAX_TURN> pos_history;
 	array<byte, MAX_TURN> rot_history;
@@ -486,7 +487,6 @@ class Info
 public:
 	int turn;
 	int time;
-	int ojama;
 	int skill;
 	int score;
 
@@ -529,7 +529,7 @@ void Input()
 	{
 		Info& info = _infos[p];
 		cin >> info.time;
-		cin >> info.ojama;
+		cin >> info.state.ojama;
 		cin >> info.skill;
 		cin >> info.score;
 
@@ -570,10 +570,10 @@ int main()
 		//ojama
 		for (int p = 0; p < 2; p++)
 		{
-			if (_infos[p].ojama >= 10)
+			if (_infos[p].state.ojama >= 10)
 			{
 				_infos[p].state.Ojama();
-				_infos[p].ojama -= 10;;
+				_infos[p].state.ojama -= 10;;
 			}
 		}
 
@@ -599,23 +599,23 @@ int main()
 			}
 		}
 		cerr << "turn:" << _turn << "  max:" << max_chain << endl;
-		if (max_chain >= NEED_CHAIN)
+		if (max_chain >= NEED_CHAIN || (_infos[1].skill >= 60 && max_chain >= 3))
 		{
 			cout << max_pos << " " << max_rot << endl;
 			continue;
 		}
 
-		if (_infos[0].ojama >= 10)
-		{
-			cerr << "SOUSAI" << endl;
-			int prev_line_cnt = _infos[0].ojama / 10;
-			int next_line_cnt = (_infos[0].ojama - CHAIN_OJAMA_TABLE[max_chain]) / 10;
-			if (prev_line_cnt > next_line_cnt)
-			{
-				cout << max_pos << " " << max_rot << endl;
-				continue;
-			}
-		}
+		//if (_infos[0].state.ojama >= 10)
+		//{
+		//	cerr << "SOUSAI" << endl;
+		//	int prev_line_cnt = _infos[0].state.ojama / 10;
+		//	int next_line_cnt = (_infos[0].state.ojama - CHAIN_OJAMA_TABLE[max_chain]) / 10;
+		//	if (prev_line_cnt > next_line_cnt)
+		//	{
+		//		cout << max_pos << " " << max_rot << endl;
+		//		continue;
+		//	}
+		//}
 
 		//íTçı
 		priority_queue<State> q[MAX_TURN + 1];
@@ -660,7 +660,7 @@ int main()
 					clone.score += clone.GetScore();
 					if (chain >= NEED_CHAIN)
 					{
-						clone.score += (MAX_TURN - 1) * 1000;
+						clone.score += 1 * 1000;
 					}
 					q[MAX_TURN].push(clone);
 				}
@@ -717,6 +717,12 @@ int main()
 							}
 							q[t + 1].push(clone);
 						}
+
+						if (clone.ojama >= 10)
+						{
+							clone.Ojama();
+							clone.ojama -= 10;;
+						}
 					}
 				}
 			}
@@ -730,7 +736,7 @@ int main()
 		{
 			State best = q[MAX_TURN].top();
 
-			//skilla
+			//skill
 			if (_infos[0].skill >= 80 && best.score <= 1000)
 			{
 				int five_cnt = 0;
