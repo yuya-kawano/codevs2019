@@ -397,9 +397,9 @@ public:
 		return true;
 	}
 
-	void GetChainCount(int *chain_cnt, int *erase_cnt)
+	int GetChainCount(int *erase_cnt = NULL)
 	{
-		*chain_cnt = 0;
+		int chain_cnt = 0;
 
 		for (int x = 0; x < WIDTH; x++)
 		{
@@ -420,13 +420,18 @@ public:
 
 				int erase = 0;
 				int chain = state.Submit(check, &erase);
-				if (*chain_cnt < chain)
+				if (chain_cnt < chain)
 				{
-					*chain_cnt = chain;
-					*erase_cnt = erase;
+					chain_cnt = chain;
+					if (erase_cnt != NULL)
+					{
+						*erase_cnt = erase;
+					}
 				}
 			}
 		}
+
+		return chain_cnt;
 	}
 
 	double GetScore()
@@ -446,8 +451,7 @@ public:
 		}
 
 		int erase;
-		int chain;
-		GetChainCount(&chain, &erase);
+		int chain = GetChainCount(&erase);
 
 		score += chain * 10;
 		score += block_cnt * 0.1;
@@ -481,6 +485,44 @@ public:
 		score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
 
 		return score;
+	}
+
+	int GetSkillOjama()
+	{
+		int cnt = 0;
+
+		bool flg[WIDTH * HEIGHT] = {};
+
+		for (int x = 0; x < WIDTH; x++)
+		{
+			for (int y = 0; y < HEIGHT; y++)
+			{
+				if (Get(x, y) == 5)
+				{
+					if (!flg[y * WIDTH + x])
+					{
+						flg[y * WIDTH + x] = true;
+						cnt++;
+					}
+					for (int d = 0; d < 8; d++)
+					{
+						int dx = x + _dx[d];
+						int dy = y + _dy[d];
+						if (IsIn(dx, dy))
+						{
+							if (Get(dx, dy) > 0 && !flg[dy * WIDTH + dx])
+							{
+								flg[dy * WIDTH + dx] = true;
+								cnt++;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return (int)(floor(25 * pow(2, cnt / 12.0)) / 2.0);
+
 	}
 };
 
@@ -554,6 +596,25 @@ void Input()
 }
 
 
+int GetRealChain(State& state, int turn)
+{
+	int max_chain = 0;
+	for (int pos = 0; pos < WIDTH - 1; pos++)
+	{
+		for (int rot = 0; rot < 4; rot++)
+		{
+			State clone = state;
+			int chain = clone.Put(_blocks[_turn], pos, rot);
+			if (max_chain < chain)
+			{
+				max_chain = chain;
+			}
+		}
+	}
+	return max_chain;
+}
+
+
 int main()
 {
 	cout << "y_kawano" << endl;
@@ -568,6 +629,25 @@ int main()
 		time_point<system_clock> start_time = system_clock::now();
 
 		const int NEED_CHAIN = 12;
+		const int KILL_CHAIN = 15;
+		const int SAFE_CHAIN = 7;
+		const int NEED_SKILL = 50;
+
+		//param
+		int ally_chain = _infos[0].state.GetChainCount();
+		int ally_skill = _infos[0].state.GetSkillOjama();
+		int enemy_chain = _infos[1].state.GetChainCount();
+		int real_enemy_chain = GetRealChain(_infos[1].state, _turn);
+		enemy_chain = MAX(enemy_chain, real_enemy_chain);
+		int enemy_skill = _infos[1].state.GetSkillOjama();
+
+		//skill
+		if (ally_skill >= NEED_SKILL && CHAIN_OJAMA_TABLE[ally_chain] < ally_skill && _infos[0].skill >= 80)
+		{
+			cerr << "SKILL" << endl;
+			cout << "S" << endl;
+			continue;
+		}
 
 		//ojama
 		for (int p = 0; p < 2; p++)
@@ -600,11 +680,39 @@ int main()
 				}
 			}
 		}
-		cerr << "turn:" << _turn << "  max:" << max_chain << endl;
-		if (max_chain >= NEED_CHAIN || (_infos[1].skill >= 72 && max_chain >= 3))
+		cerr << "t:" << _turn << "  m:" << max_chain << " a_:" << _infos[0].skill << " e_:" << _infos[1].skill << endl;
+		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+		if ((_infos[1].skill >= 80 - 8 * 2 && max_chain >= 3 && enemy_skill >= 50 
+			&& enemy_skill >= MAX(CHAIN_OJAMA_TABLE[ally_chain], ally_skill)))
 		{
+			cerr << "SKILL_BOGAI" << endl;
 			cout << max_pos << " " << max_rot << endl;
 			continue;
+		}
+
+		if (enemy_chain <= SAFE_CHAIN)
+		{
+			if (max_chain >= KILL_CHAIN)
+			{
+				cerr << "KILL_CHAIN" << endl;
+				cout << max_pos << " " << max_rot << endl;
+				continue;
+			}
+		}
+		else
+		{
+			if (max_chain >= NEED_CHAIN)
+			{
+				cerr << "ATTACK_CHAIN" << endl;
+				cout << max_pos << " " << max_rot << endl;
+				continue;
+			}
+		}
+
+		int target_chain = NEED_CHAIN;
+		if (enemy_chain <= SAFE_CHAIN)
+		{
+			target_chain = KILL_CHAIN;
 		}
 
 		//if (_infos[0].state.ojama >= 10)
@@ -644,7 +752,7 @@ int main()
 			{
 				int chain = history_state.Put(_blocks[(_turn - 1) + (t + 1)], _prev_state.pos_history[t + 1], _prev_state.rot_history[t + 1]);
 				history_state.score += history_state.GetScore();
-				if (chain >= NEED_CHAIN)
+				if (chain >= target_chain)
 				{
 					history_state.score += (MAX_TURN - t) * 1000;
 				}
@@ -660,14 +768,14 @@ int main()
 					clone.rot_history[MAX_TURN - 1] = rot;
 					int chain = clone.Put(_blocks[_turn + (MAX_TURN - 1)], pos, rot);
 					clone.score += clone.GetScore();
-					if (chain >= NEED_CHAIN)
+					if (chain >= target_chain)
 					{
 						clone.score += 1 * 1000;
 					}
 					q[MAX_TURN].push(clone);
 				}
 			}
-			cerr << "prev_score:" << q[MAX_TURN].top().score << endl;
+			//cerr << "prev_score:" << q[MAX_TURN].top().score << endl;
 		}
 
 		//loop
@@ -713,7 +821,7 @@ int main()
 						if (chain >= 0)
 						{
 							clone.score += clone.GetScore();
-							if (chain >= NEED_CHAIN)
+							if (chain >= target_chain)
 							{
 								clone.score += (MAX_TURN - t) * 1000;
 							}
@@ -738,27 +846,7 @@ int main()
 		{
 			State best = q[MAX_TURN].top();
 
-			//skill
-			if (_infos[0].skill >= 80 && best.score <= 1000)
-			{
-				int five_cnt = 0;
-				for (int y = 0; y < HEIGHT; y++)
-				{
-					for (int x = 0; x < WIDTH; x++)
-					{
-						if (_infos[0].state.Get(x, y) == 5)
-							five_cnt++;
-					}
-				}
-				if (five_cnt >= 1)
-				{
-					cerr << "SKILL" << endl;
-					cout << "S" << endl;
-					continue;
-				}
-			}
-
-			cerr << "loop:" << loop << endl;
+			//cerr << "loop:" << loop << endl;
 			cerr << "score:" << fixed << setprecision(2) << best.score << endl;
 			cout << (int)best.pos_history[0] << " " << (int)best.rot_history[0] << endl;
 
