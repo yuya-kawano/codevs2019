@@ -86,7 +86,7 @@ const int SKILL_MAX = 100;
 
 const u64 mask4 = 0b1111;
 
-const int MAX_TURN = 8;
+const int MAX_TURN = 10;
 
 int CHAIN_OJAMA_TABLE[] = { 0,1,2,3,4,6,9,13,18,25,33,45,60,79,105,138,181,237,310,405,528,689,897,1168,1521,1979,2575,3350,4358,5667,7370,9583,12461,16202,21066,27389,35609,46295,60186,78245,101722,132242,171919,223498,290551,377720,491040,638356,829867, };
 
@@ -736,11 +736,10 @@ int main()
 		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
 
 		//fire
-		if ((_infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2 && max_chain >= 3 && enemy_skill >= MAX(CHAIN_OJAMA_TABLE[ally_chain], ally_skill)))
+		int ally_attack = CHAIN_OJAMA_TABLE[ally_chain];
+		if (ally_skill >= ally_attack && _infos[0].state.skill >= SKILL_COST)
 		{
-			cerr << "SKILL_BOGAI" << endl;
-			cout << max_pos << " " << max_rot << endl;
-			continue;
+			ally_attack = ally_skill;
 		}
 
 		int target_chain;
@@ -763,6 +762,12 @@ int main()
 				cout << max_pos << " " << max_rot << endl;
 				continue;
 			}
+		}
+		if (_infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2 && max_chain >= 3 && enemy_skill >= ally_attack)
+		{
+			cerr << "SKILL_BOGAI" << endl;
+			cout << max_pos << " " << max_rot << endl;
+			continue;
 		}
 
 
