@@ -28,7 +28,7 @@
 #endif
 
 //#define PRINT_RENSA
-#define SPEED_MODE
+//#define SPEED_MODE
 
 int MAX(int a, int b) { return (((a) > (b)) ? (a) : (b)); }
 int MIN(int a, int b) { return (((a) < (b)) ? (a) : (b)); }
@@ -125,6 +125,24 @@ public:
 		return (score < obj.score);
 	}
 
+	ull GetHash()
+	{
+		ull a = _rotl64(map[1], 4);
+
+		ull hash = 0;
+		hash ^= map[0] * 1;
+		hash ^= _rotl64(map[1], 30) * 11ull;
+		hash ^= _rotl64(map[2], 5) * 13ull;
+		hash ^= _rotl64(map[3], 35) * 17ull;
+		hash ^= _rotl64(map[4], 10) * 19ull;
+		hash ^= _rotl64(map[5], 40) * 23ull;
+		hash ^= _rotl64(map[6], 15) * 29ull;
+		hash ^= _rotl64(map[7], 45) * 31ull;
+		hash ^= _rotl64(map[8], 20) * 37ull;
+		hash ^= _rotl64(map[9], 50) * 39ull;
+		return hash;
+	}
+
 	int Get(int x, int y)
 	{
 		return ((map[x] >> (y * 4)) & mask4);
@@ -138,7 +156,7 @@ public:
 	}
 
 
-	int Put(int block, int pos, int rot)
+	bool Drop(int block, int pos, int rot, ull* check)
 	{
 		ASSERT(0 <= rot && rot < 4);
 		ASSERT(0 <= pos && pos < WIDTH - 1);
@@ -177,17 +195,33 @@ public:
 		if ((l & mask4) == 0) l >>= 4;
 		if ((r & mask4) == 0) r >>= 4;
 
-		ull check = -1;
-		if (!DropLine(pos, l, &check)) return -1;
-		if (!DropLine(pos + 1, r, &check)) return -1;
+		*check = -1;
+		if (!DropLine(pos, l, check)) return false;
+		if (!DropLine(pos + 1, r, check)) return false;
 
-		int chain = Submit(check);
-		if (chain >= 1)
+		return true;
+	}
+
+
+	int Put(int block, int pos, int rot)
+	{
+		ull check;
+		bool can_drop = Drop(block, pos, rot, &check);
+
+		if (can_drop)
 		{
-			skill += SKILL_GAIN;
-			if (skill > SKILL_MAX) skill = SKILL_MAX;
+			int chain = Submit(check);
+			if (chain >= 1)
+			{
+				skill += SKILL_GAIN;
+				if (skill > SKILL_MAX) skill = SKILL_MAX;
+			}
+			return chain;
 		}
-		return chain;
+		else
+		{
+			return -1;
+		}
 	}
 
 	bool DropLine(int x, int block_line, ull*check)
@@ -366,7 +400,7 @@ public:
 		{
 			next_bottom = y;
 			(*next) &= ~((ull)mask4 << (x * 4));
-			(*next) |= (y << (x * 4));
+			(*next) |= ((ull)y << (x * 4));
 		}
 	}
 
@@ -423,7 +457,7 @@ public:
 
 			ull check = -1;
 			check &= ~((ull)mask4 << (x * 4));
-			check |= (drop_y << (x * 4));
+			check |= ((ull)drop_y << (x * 4));
 
 			for (int n = 0; n <= 9; n++)
 			{
@@ -561,7 +595,7 @@ public:
 						int dy = y + _dy[d];
 						if (IsIn(dx, dy))
 						{
-							if (Get(dx, dy) > 0 && !flg[dy * WIDTH + dx])
+							if (Get(dx, dy) != OJAMA && Get(dx, dy) > 0 && !flg[dy * WIDTH + dx])
 							{
 								flg[dy * WIDTH + dx] = true;
 								cnt++;
@@ -573,7 +607,6 @@ public:
 		}
 
 		return (int)(floor(25 * pow(2, cnt / 12.0)) / 2.0);
-
 	}
 };
 
@@ -669,161 +702,34 @@ int GetRealChain(State& state, int turn, int *max_pos = NULL, int *max_rot = NUL
 	return max_chain;
 }
 
-
 int main()
 {
 	cout << "y_kawano" << endl;
 
+	//map<ull, State> _hash_test;
+	unordered_set<ull> _hash;
+
 	Init();
 
 	memset(_prev_state.map, -1, sizeof(_prev_state.map));
+
+	map<int, vector<State>> _dump;
+	map<int, vector<int>> _dump_turn;
+	map<int, vector<int>> _dump_pos;
+	map<int, vector<int>> _dump_rot;
 
 	while (true)
 	{
 		Input();
 		time_point<system_clock> start_time = system_clock::now();
 
-		const int NEED_CHAIN = 12;
-		const int KILL_CHAIN = 15;
-		const int SAFE_CHAIN = 7;
-		const int NEED_SKILL = 50;
-
-		//param
-		int max_chain = 0;
-		int max_pos = 0;
-		int max_rot = 0;
-
-		int ally_chain = _infos[0].state.GetChainCount();
-		max_chain = GetRealChain(_infos[0].state, _turn, &max_pos, &max_rot);
-		ally_chain = MAX(ally_chain, max_chain);
-		int ally_skill = _infos[0].state.GetSkillOjama();
-
-		int enemy_chain = _infos[1].state.GetChainCount();
-		int real_enemy_chain = GetRealChain(_infos[1].state, _turn);
-		enemy_chain = MAX(enemy_chain, real_enemy_chain);
-		int enemy_skill = _infos[1].state.GetSkillOjama();
-
-		bool skill_mode = false;
-
-		//skill
-		if (ally_skill >= NEED_SKILL && CHAIN_OJAMA_TABLE[ally_chain] < ally_skill && ally_chain <= SAFE_CHAIN)
-		{
-			skill_mode = true;
-		}
-		if (skill_mode && _infos[0].state.skill >= SKILL_COST)
-		{
-			cerr << "SKILL" << endl;
-			cout << "S" << endl;
-			continue;
-		}
-
-		//ojama
-		for (int p = 0; p < 2; p++)
-		{
-			if (_infos[p].state.ojama >= 10)
-			{
-				_infos[p].state.Ojama();
-				_infos[p].state.ojama -= 10;;
-			}
-		}
-
-		//print ifo
-		if (skill_mode)
-			cerr << "*";
-		else if (enemy_chain >= SAFE_CHAIN)
-			cerr << "+";
-		cerr << "t:" << _turn << "  m:" << max_chain << " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill << endl;
-		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
-
-		//fire
-		int ally_attack = CHAIN_OJAMA_TABLE[ally_chain];
-		if (ally_skill >= ally_attack && _infos[0].state.skill >= SKILL_COST)
-		{
-			ally_attack = ally_skill;
-		}
-
-		int target_chain;
-		if (enemy_chain < SAFE_CHAIN && _infos[0].state.ojama < 10)
-		{
-			target_chain = KILL_CHAIN;
-			if (max_chain >= KILL_CHAIN)
-			{
-				cerr << "KILL_CHAIN" << endl;
-				cout << max_pos << " " << max_rot << endl;
-				continue;
-			}
-		}
-		else
-		{
-			target_chain = NEED_CHAIN;
-			if (max_chain >= NEED_CHAIN)
-			{
-				cerr << "ATTACK_CHAIN" << endl;
-				cout << max_pos << " " << max_rot << endl;
-				continue;
-			}
-		}
-		if (_infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2 && max_chain >= 3 && enemy_skill >= ally_attack)
-		{
-			cerr << "SKILL_BOGAI" << endl;
-			cout << max_pos << " " << max_rot << endl;
-			continue;
-		}
-
-
 		//’Tõ
 		priority_queue<State> q[MAX_TURN + 1];
 		q[0].push(_infos[0].state);
 
-		//history
-		bool is_match = true;
-		for (int x = 0; x < WIDTH; x++)
-		{
-			for (int y = 0; y < HEIGHT; y++)
-			{
-				if (_infos[0].state.Get(x, y) != _prev_state.Get(x, y))
-				{
-					is_match = false;
-					break;
-				}
-			}
-			if (!is_match) break;
-		}
-		if (is_match && !skill_mode)
-		{
-			State history_state = _infos[0].state;
-			for (int t = 0; t < MAX_TURN - 1; t++)
-			{
-				int chain = history_state.Put(_blocks[(_turn - 1) + (t + 1)], _prev_state.pos_history[t + 1], _prev_state.rot_history[t + 1]);
-				history_state.score += history_state.GetScore();
-				if (chain >= target_chain)
-				{
-					history_state.score += (MAX_TURN - t) * 1000;
-				}
-				history_state.pos_history[t] = _prev_state.pos_history[t + 1];
-				history_state.rot_history[t] = _prev_state.rot_history[t + 1];
-			}
-			for (int pos = 0; pos < WIDTH - 1; pos++)
-			{
-				for (int rot = 0; rot < 4; rot++)
-				{
-					State clone = history_state;
-					clone.pos_history[MAX_TURN - 1] = pos;
-					clone.rot_history[MAX_TURN - 1] = rot;
-					int chain = clone.Put(_blocks[_turn + (MAX_TURN - 1)], pos, rot);
-					clone.score += clone.GetScore();
-					if (chain >= target_chain)
-					{
-						clone.score += 1 * 1000;
-					}
-					q[MAX_TURN].push(clone);
-				}
-			}
-			//cerr << "prev_score:" << q[MAX_TURN].top().score << endl;
-		}
-
 		//loop
 		int loop = 0;
+		int skip = 0;
 		while (true)
 		{
 			ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
@@ -857,32 +763,53 @@ int main()
 					{
 						State clone = state;
 
+						//ull hash = clone.GetHash();
+						//auto it = _hash_test.find(hash);
+						//if (it != _hash_test.end())
+						//{
+						//	State& hash_state = it->second;
+						//	for (int x = 0; x < WIDTH; x++)
+						//	{
+						//		for (int y = 0; y < HEIGHT; y++)
+						//		{
+						//			if (clone.Get(x, y) != hash_state.Get(x, y))
+						//			{
+						//				ASSERT(false);
+						//			}
+						//		}
+						//	}
+						//}
+						//else
+						//{
+						//	_hash_test[hash] = clone;
+						//}
+
 						clone.pos_history[t] = pos;
 						clone.rot_history[t] = rot;
 
 						int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
+						ull hash = clone.GetHash();
+						if (_hash.find(hash) != _hash.end())
+						{
+							skip++;
+							continue;
+						}
+						_hash.insert(hash);
+
 						loop++;
 
-						if (skill_mode)
+						if (chain >= 0)
 						{
-							clone.score += clone.GetSkillScore();
-							if (clone.skill >= SKILL_COST)
+							if (chain >= 5)
 							{
-								clone.score += (MAX_TURN - t) * 1000;
+								_dump[chain].push_back(state);
+								_dump_turn[chain].push_back(t);
+								_dump_pos[chain].push_back(pos);
+								_dump_rot[chain].push_back(rot);
 							}
+							clone.score += clone.GetScore();
 							q[t + 1].push(clone);
-						}
-						else
-						{
-							if (chain >= 0)
-							{
-								clone.score += clone.GetScore();
-								if (chain >= target_chain)
-								{
-									clone.score += (MAX_TURN - t) * 1000;
-								}
-								q[t + 1].push(clone);
-							}
 						}
 
 						if (clone.ojama >= 10)
@@ -912,5 +839,42 @@ int main()
 			_prev_state.pos_history = best.pos_history;
 			_prev_state.rot_history = best.rot_history;
 		}
+
+		ofstream ofs("C:/project/codevs2019/codevs/dump.txt");
+		for (int i = 5; i < 20; i++)
+		{
+			ofs << i << endl;
+			ofs << _dump[i].size() << endl;
+
+			for (int j = 0; j < _dump[i].size(); j++)
+			{
+				//int turn = _dump_turn[i][j];
+				//ofs << ((_blocks[turn] >> 0) & mask4) << " "
+				//	<< ((_blocks[turn] >> 4) & mask4) << " "
+				//	<< ((_blocks[turn] >> 8) & mask4) << " "
+				//	<< ((_blocks[turn] >> 12) & mask4) << endl;
+
+				//ofs << _dump_pos[i][j] << endl;
+				//ofs << _dump_rot[i][j] << endl;
+
+				State& state = _dump[i][j];
+
+				ull check;
+				int turn = _dump_turn[i][j];
+				state.Drop(_blocks[turn], _dump_pos[i][j], _dump_rot[i][j], &check);
+
+				for (int y = 0; y < HEIGHT; y++)
+				{
+					for (int x = 0; x < WIDTH; x++)
+					{
+						ofs << state.Get(x, y) << " ";
+					}
+					ofs << endl;
+				}
+			}
+
+				
+		}
+		ofs.close();
 	}
 }
