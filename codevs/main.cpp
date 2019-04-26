@@ -459,7 +459,7 @@ public:
 			check &= ~((ull)mask4 << (x * 4));
 			check |= ((ull)drop_y << (x * 4));
 
-			for (int n = 0; n <= 9; n++)
+			for (int n = 1; n <= 9; n++)
 			{
 				State state = *this;
 				state.DropBlock(x, drop_y, n);
@@ -530,7 +530,7 @@ public:
 		double score = 0.0;
 
 		int block_cnt = 0;
-		for (int x=0; x<WIDTH; x++)
+		for (int x = 0; x < WIDTH; x++)
 		{
 			for (int y = 0; y < HEIGHT; y++)
 			{
