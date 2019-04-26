@@ -717,6 +717,8 @@ int main()
 	map<int, vector<int>> _dump_turn;
 	map<int, vector<int>> _dump_pos;
 	map<int, vector<int>> _dump_rot;
+	map<int, vector<double>> _dump_score;
+
 
 	while (true)
 	{
@@ -801,14 +803,16 @@ int main()
 
 						if (chain >= 0)
 						{
+							clone.score += clone.GetScore();
+
 							if (chain >= 5)
 							{
 								_dump[chain].push_back(state);
 								_dump_turn[chain].push_back(t);
 								_dump_pos[chain].push_back(pos);
 								_dump_rot[chain].push_back(rot);
+								_dump_score[chain].push_back(clone.score);
 							}
-							clone.score += clone.GetScore();
 							q[t + 1].push(clone);
 						}
 
@@ -863,6 +867,7 @@ int main()
 				int turn = _dump_turn[i][j];
 				state.Drop(_blocks[turn], _dump_pos[i][j], _dump_rot[i][j], &check);
 
+				ofs << _dump_score[i][j] << endl;
 				for (int y = 0; y < HEIGHT; y++)
 				{
 					for (int x = 0; x < WIDTH; x++)

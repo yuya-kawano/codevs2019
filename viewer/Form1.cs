@@ -25,6 +25,7 @@ namespace viewer
 		class Log
 		{
 			public List<int[,]> Maps = new List<int[,]>();
+			public double Score;
 
 			public Log(int[,] map_)
 			{
@@ -120,11 +121,13 @@ namespace viewer
 			{
 				int chain = int.Parse(sr.ReadLine());
 
-				_dic[chain] = new List<Log>();
+				var logs = new List<Log>();
 
 				int count = int.Parse(sr.ReadLine());
 				for (int i = 0; i < count; i++)
 				{
+					var score = double.Parse(sr.ReadLine());
+
 					min_chain = Math.Min(min_chain, chain);
 
 					int[,] map = new int[WIDTH, HEIGHT];
@@ -139,8 +142,10 @@ namespace viewer
 						}
 					}
 
-					_dic[chain].Add(new Log(map));
+					logs.Add(new Log(map) { Score = score });
 				}
+
+				_dic[chain] = logs.OrderBy(l => l.Score).ToList();
 
 				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + _dic[chain].Count);
 			}
@@ -163,15 +168,17 @@ namespace viewer
 			int n = int.Parse(str.Split(':')[0]);
 			for (int i = 0; i < _dic[n].Count; i++)
 			{
-				listBoxList.Items.Add(i);
+				listBoxList.Items.Add(i + " : " + _dic[n][i].Score.ToString(".00"));
 			}
 		}
 
 		private void ListBoxList_SelectedIndexChanged(object sender, EventArgs e)
 		{
-			string str = listBoxChain.SelectedItem as string;
-			int chain = int.Parse(str.Split(':')[0]);
-			int index = (int)listBoxList.SelectedItem;
+			string str_chain = listBoxChain.SelectedItem as string;
+			int chain = int.Parse(str_chain.Split(':')[0]);
+
+			string str_index = listBoxList.SelectedItem as string;
+			int index = int.Parse(str_index.Split(':')[0]);
 
 			_chain = chain;
 			_index = index;

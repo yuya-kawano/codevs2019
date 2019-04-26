@@ -64,7 +64,7 @@
 			this.listBoxList.ItemHeight = 14;
 			this.listBoxList.Location = new System.Drawing.Point(678, 12);
 			this.listBoxList.Name = "listBoxList";
-			this.listBoxList.Size = new System.Drawing.Size(92, 522);
+			this.listBoxList.Size = new System.Drawing.Size(174, 522);
 			this.listBoxList.TabIndex = 2;
 			this.listBoxList.SelectedIndexChanged += new System.EventHandler(this.ListBoxList_SelectedIndexChanged);
 			// 
@@ -92,7 +92,7 @@
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(782, 726);
+			this.ClientSize = new System.Drawing.Size(928, 726);
 			this.Controls.Add(this.buttonNext);
 			this.Controls.Add(this.buttonPrev);
 			this.Controls.Add(this.listBoxList);
