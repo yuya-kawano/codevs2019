@@ -33,18 +33,36 @@ namespace viewer
 			public int ScoreChain;
 			public int DropX;
 
+			public Log Clone()
+			{
+				Log clone = new Log();
+
+				for (int i = 0; i < Maps.Count; i++)
+				{
+					clone.Maps.Add(Maps[i].Clone() as int[,]);
+				}
+				clone.Map = Map.Clone() as int[,];
+				clone.Score = Score;
+				clone.Turn = Turn;
+				clone.Chain = Chain;
+				clone.ScoreChain = ScoreChain;
+				clone.DropX = DropX;
+
+				return clone;
+			}
+
 			public Log()
 			{
 			}
 
-			public void SetMap(int[,] map_)
+			public void SetMap(int[,] map_, bool is_sim)
 			{
 				Maps = new List<int[,]>();
 				var map = map_.Clone() as int[,];
 
 				Chain = Submit(map, Maps);
 
-				if (Chain <= 2)
+				if (is_sim && DropX >= 0)
 				{
 					int max_chain = 0;
 					List<int[,]> max_maps = null;
@@ -211,14 +229,19 @@ namespace viewer
 				_dic[chain] = logs.OrderByDescending(l => l.Score).Take(1000).ToList();
 				_dic_real_chain[chain] = logs.OrderByDescending(l => l.Chain).Take(1000).ToList();
 
+				for (int i = 0; i < _dic[chain].Count; i++)
+				{
+					_dic[chain][i] = _dic[chain][i].Clone();
+				}
+
 				foreach (var log in _dic[chain])
 				{
-					log.SetMap(log.Map);
+					log.SetMap(log.Map, true);
 				}
 
 				foreach (var log in _dic_real_chain[chain])
 				{
-					log.SetMap(log.Map);
+					log.SetMap(log.Map, false);
 				}
 
 				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + logs.Count);

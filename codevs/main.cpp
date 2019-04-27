@@ -118,6 +118,9 @@ public:
 	int skill;
 
 	int prev_drop_x;
+	int erase_min_x;
+	int erase_max_x;
+
 	array<byte, MAX_TURN> pos_history;
 	array<byte, MAX_TURN> rot_history;
 	array<byte, MAX_TURN> chain_history;
@@ -310,9 +313,15 @@ public:
 	//	return res;
 	//}
 
-	int Submit(ull first_check, int *erase_cnt = NULL)
+	int Submit(ull first_check, int *erase_cnt = NULL, int *erase_min_x = NULL, int *erase_max_x = NULL)
 	{
 		int chein = 0;
+
+		if (erase_min_x != NULL)
+		{
+			*erase_min_x = WIDTH;
+			*erase_max_x = -1;
+		}
 
 		ull check = first_check;
 
@@ -364,13 +373,17 @@ public:
 					if (map[x] & ((ull)mask4 << shift))
 					{
 						(*erase_cnt)++;
+
+						if (erase_min_x != NULL)
+						{
+							(*erase_min_x) = MIN(x, *erase_min_x);
+							(*erase_max_x) = MAX(x, *erase_max_x);
+						}
 					}
 				}
 
 				map[x] &= (~((ull)mask4 << shift));
 				erase_bit[x] |= ((ull)mask4 << shift);
-
-				
 			}
 
 #ifdef PRINT_RENSA
@@ -446,7 +459,7 @@ public:
 		return true;
 	}
 
-	int GetChainCount(int drop_x_start, int drop_x_end, int *erase_cnt = NULL, int *max_drop_x = NULL)
+	int GetChainCount(int drop_x_start, int drop_x_end, int *erase_cnt, int *max_drop_x, int *erase_min_x, int* erase_max_x)
 	{
 		int chain_cnt = 0;
 
@@ -468,15 +481,17 @@ public:
 				state.DropBlock(x, drop_y, n);
 
 				int erase = 0;
-				int chain = state.Submit(check, &erase);
+				int min_x;
+				int max_x;
+				int chain = state.Submit(check, &erase, &min_x, &max_x);
 				if (chain_cnt < chain)
 				{
 					chain_cnt = chain;
-					if (erase_cnt != NULL)
-					{
-						*max_drop_x = x;
-						*erase_cnt = erase;
-					}
+
+					*max_drop_x = x;
+					*erase_cnt = erase;
+					*erase_min_x = min_x;
+					*erase_max_x = max_x;
 				}
 			}
 		}
@@ -528,7 +543,7 @@ public:
 		return 0;
 	}
 
-	double GetScore(int drop_x, int *max_drop_x, int *score_chain)
+	double GetScore(int drop_x, int *max_drop_x, int *score_chain, int *erase_min_x, int *erase_max_x)
 	{
 		double score = 0.0;
 
@@ -560,13 +575,13 @@ public:
 		}
 
 		int erase = 0;
-		int max_x = 0;
-		int chain = GetChainCount(drop_x_start, drop_x_end, &erase, &max_x);
+		int chain = GetChainCount(drop_x_start, drop_x_end, &erase, max_drop_x, erase_min_x, erase_max_x);
 		if (chain <= 1)
 		{
-			max_x = -1;
+			*max_drop_x = -1;
+			*erase_min_x = 0;
+			*erase_max_x = WIDTH - 1;
 		}
-		*max_drop_x = max_x;
 		*score_chain = chain;
 
 		score += chain * 100;
@@ -760,7 +775,11 @@ int main()
 
 		//’Tõ
 		priority_queue<State> q[MAX_TURN + 1];
+		
 		_infos[0].state.prev_drop_x = -1;
+		_infos[0].state.erase_min_x = 0;
+		_infos[0].state.erase_max_x = WIDTH - 1;
+
 		q[0].push(_infos[0].state);
 
 		//loop
@@ -793,7 +812,10 @@ int main()
 				State state = q[t].top();
 				q[t].pop();
 
-				for (int pos = 0; pos < WIDTH - 1; pos++)
+				int drop_min_x = MAX(0, state.erase_min_x - 3);
+				int drop_max_x = MIN(WIDTH - 1, state.erase_max_x + 2);
+
+				for (int pos = drop_min_x; pos < drop_max_x; pos++)
 				{
 					for (int rot = 0; rot < 4; rot++)
 					{
@@ -842,9 +864,14 @@ int main()
 						{
 							int drop_x;
 							int score_chain;
-							clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain);
+							int erase_min_x;
+							int erase_max_x;
+
+							clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain, &erase_min_x, &erase_max_x);
 							clone.prev_drop_x = drop_x;
 							clone.chain_history[t] = score_chain;
+							clone.erase_min_x = erase_min_x;
+							clone.erase_max_x = erase_max_x;
 
 #ifdef DUMP_TEST
 							if (score_chain > 5 || chain > 5)
