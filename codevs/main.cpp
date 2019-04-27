@@ -724,20 +724,24 @@ int GetRealChain(State& state, int turn, int *max_pos = NULL, int *max_rot = NUL
 	return max_chain;
 }
 
-#define HASH_TEST
+//#define HASH_TEST
 #define DUMP_TEST
 
 int main()
 {
 	cout << "y_kawano" << endl;
 
-	//map<ull, State> _hash_test;
+#ifdef HASH_TEST
+	map<ull, State> _hash_test;
+#endif
 	unordered_set<ull> _hash;
+
 
 	Init();
 
 	memset(_prev_state.map, -1, sizeof(_prev_state.map));
 
+#ifdef DUMP_TEST
 	map<int, vector<State>> _dump;
 	map<int, vector<int>> _dump_turn;
 	map<int, vector<int>> _dump_pos;
@@ -745,7 +749,7 @@ int main()
 	map<int, vector<double>> _dump_score;
 	map<int, vector<int>> _dump_drop_x;
 	map<int, vector<int>> _dump_chain;
-
+#endif
 
 	while (true)
 	{
@@ -793,26 +797,28 @@ int main()
 					{
 						State clone = state;
 
-						//ull hash = clone.GetHash();
-						//auto it = _hash_test.find(hash);
-						//if (it != _hash_test.end())
-						//{
-						//	State& hash_state = it->second;
-						//	for (int x = 0; x < WIDTH; x++)
-						//	{
-						//		for (int y = 0; y < HEIGHT; y++)
-						//		{
-						//			if (clone.Get(x, y) != hash_state.Get(x, y))
-						//			{
-						//				ASSERT(false);
-						//			}
-						//		}
-						//	}
-						//}
-						//else
-						//{
-						//	_hash_test[hash] = clone;
-						//}
+#ifdef HASH_TEST
+						ull hash = clone.GetHash();
+						auto it = _hash_test.find(hash);
+						if (it != _hash_test.end())
+						{
+							State& hash_state = it->second;
+							for (int x = 0; x < WIDTH; x++)
+							{
+								for (int y = 0; y < HEIGHT; y++)
+								{
+									if (clone.Get(x, y) != hash_state.Get(x, y))
+									{
+										ASSERT(false);
+									}
+								}
+							}
+						}
+						else
+						{
+							_hash_test[hash] = clone;
+						}
+#endif
 
 						clone.pos_history[t] = pos;
 						clone.rot_history[t] = rot;
@@ -836,6 +842,7 @@ int main()
 							clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain);
 							clone.prev_drop_x = drop_x;
 
+#ifdef DUMP_TEST
 							if (score_chain > 5 || chain > 5)
 							{
 								_dump[t].push_back(state);
@@ -846,6 +853,7 @@ int main()
 								_dump_drop_x[t].push_back(drop_x);
 								_dump_chain[t].push_back(chain);
 							}
+#endif
 
 							if (chain <= 1)
 							{
@@ -880,7 +888,7 @@ int main()
 			_prev_state.rot_history = best.rot_history;
 		}
 
-
+#ifdef DUMP_TEST
 		stringstream ss;
 		for (int i = 0; i < MAX_TURN; i++)
 		{
@@ -909,9 +917,10 @@ int main()
 				}
 			}
 		}
-
 		ofstream ofs("C:/project/codevs2019/codevs/dump.txt");
 		ofs << ss.str();
 		ofs.close();
+#endif
+
 	}
 }
