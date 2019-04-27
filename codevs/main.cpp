@@ -117,6 +117,7 @@ public:
 	int ojama;
 	int skill;
 
+	int prev_drop_x;
 	array<byte, MAX_TURN> pos_history;
 	array<byte, MAX_TURN> rot_history;
 	double score;
@@ -443,11 +444,11 @@ public:
 		return true;
 	}
 
-	int GetChainCount(int *erase_cnt = NULL, int *max_drop_x = NULL)
+	int GetChainCount(int drop_x_start, int drop_x_end, int *erase_cnt = NULL, int *max_drop_x = NULL)
 	{
 		int chain_cnt = 0;
 
-		for (int x = 0; x < WIDTH; x++)
+		for (int x = drop_x_start; x <= drop_x_end; x++)
 		{
 			int drop_y = GetDropY(x);
 			if (drop_y >= HEIGHT)
@@ -525,7 +526,7 @@ public:
 		return 0;
 	}
 
-	double GetScore()
+	double GetScore(int drop_x, int *max_drop_x)
 	{
 		double score = 0.0;
 
@@ -541,9 +542,29 @@ public:
 			}
 		}
 
+		int drop_x_start;
+		int drop_x_end;
+		if (drop_x == -1)
+		{
+			drop_x_start = 0;
+			drop_x_end = WIDTH - 1;
+		}
+		else
+		{
+			drop_x_start = drop_x - 1;
+			drop_x_end = drop_x + 1;
+			drop_x_start = MAX(0, drop_x_start);
+			drop_x_end = MIN(WIDTH - 1, drop_x_start);
+		}
+
 		int erase = 0;
 		int max_x = 0;
-		int chain = GetChainCount(&erase, &max_x);
+		int chain = GetChainCount(drop_x_start, drop_x_end, &erase, &max_x);
+		if (chain <= 1)
+		{
+			max_x = -1;
+		}
+		*max_drop_x = max_x;
 
 		score += chain * 10;
 		//score += ((abs((WIDTH / 2.0) - max_x)) * 0.000001);
@@ -727,6 +748,7 @@ int main()
 
 		//’Tõ
 		priority_queue<State> q[MAX_TURN + 1];
+		_infos[0].state.prev_drop_x = -1;
 		q[0].push(_infos[0].state);
 
 		//loop
@@ -803,7 +825,9 @@ int main()
 
 						if (chain >= 0)
 						{
-							clone.score += clone.GetScore();
+							int drop_x;
+							clone.score += clone.GetScore(clone.prev_drop_x, &drop_x);
+							clone.prev_drop_x = drop_x;
 
 							if (chain >= 5)
 							{
@@ -813,7 +837,10 @@ int main()
 								_dump_rot[chain].push_back(rot);
 								_dump_score[chain].push_back(clone.score);
 							}
-							q[t + 1].push(clone);
+							if (chain <= 1)
+							{
+								q[t + 1].push(clone);
+							}
 						}
 
 						if (clone.ojama >= 10)

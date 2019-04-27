@@ -145,7 +145,7 @@ namespace viewer
 					logs.Add(new Log(map) { Score = score });
 				}
 
-				_dic[chain] = logs.OrderBy(l => l.Score).ToList();
+				_dic[chain] = logs.OrderByDescending(l => l.Score).ToList();
 
 				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + _dic[chain].Count);
 			}
