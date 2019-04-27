@@ -120,6 +120,8 @@ public:
 	int prev_drop_x;
 	array<byte, MAX_TURN> pos_history;
 	array<byte, MAX_TURN> rot_history;
+	array<byte, MAX_TURN> chain_history;
+
 	double score;
 	bool operator < (const State& obj) const
 	{
@@ -822,6 +824,7 @@ int main()
 
 						clone.pos_history[t] = pos;
 						clone.rot_history[t] = rot;
+						clone.chain_history[t] = rot;
 
 						int chain = clone.Put(_blocks[_turn + t], pos, rot);
 
@@ -841,6 +844,7 @@ int main()
 							int score_chain;
 							clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain);
 							clone.prev_drop_x = drop_x;
+							clone.chain_history[t] = score_chain;
 
 #ifdef DUMP_TEST
 							if (score_chain > 5 || chain > 5)
@@ -857,7 +861,10 @@ int main()
 
 							if (chain <= 1)
 							{
-								q[t + 1].push(clone);
+								if (t < 2 || clone.chain_history[t - 2] < score_chain)
+								{
+									q[t + 1].push(clone);
+								}
 							}
 						}
 
