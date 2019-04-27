@@ -20,20 +20,66 @@ namespace viewer
 		int _chain = 0;
 		int _index = 0;
 		int _step = 0;
+		bool _is_real = false;
 
 
 		class Log
 		{
 			public List<int[,]> Maps = new List<int[,]>();
+			public int[,] Map;
 			public double Score;
+			public int Turn;
 			public int Chain;
+			public int ScoreChain;
+			public int DropX;
 
-			public Log(int[,] map_)
+			public Log()
+			{
+			}
+
+			public void SetMap(int[,] map_)
 			{
 				Maps = new List<int[,]>();
-
 				var map = map_.Clone() as int[,];
-				Maps.Add(map.Clone() as int[,]);
+
+				Chain = Submit(map, Maps);
+
+				if (Chain <= 2)
+				{
+					int max_chain = 0;
+					List<int[,]> max_maps = null;
+
+					for (int i = 1; i <= 9; i++)
+					{
+						map = map_.Clone() as int[,];
+						List<int[,]> maps = new List<int[,]>();
+
+						bool is_break = false;
+						for (int y = 0; y < HEIGHT; y++)
+						{
+							if (map[DropX, y] == 0)
+							{
+								map[DropX, y] = i;
+								int chain = Submit(map, maps);
+								if (max_chain < chain)
+								{
+									max_maps = maps;
+									max_chain = chain;
+								}
+								break;
+							}
+							if (is_break) break;
+						}
+					}
+
+					Maps = max_maps;
+					ScoreChain = max_chain;
+				}
+			}
+
+			int Submit(int[,] map, List<int[,]> out_maps)
+			{
+				out_maps.Add(map.Clone() as int[,]);
 				
 				int[] _dx = new int[] { 1, 0, -1, 0, 1, 1, -1, -1 };
 				int[] _dy = new int[] { 0, 1, 0, -1, 1, -1, 1, -1 };
@@ -99,14 +145,17 @@ namespace viewer
 						if (drop_end) break;
 					}
 
-					Maps.Add(map.Clone() as int[,]);
+					out_maps.Add(map.Clone() as int[,]);
 					chain++;
 				}
-				Chain = chain;
+
+				return chain;
 			}
+
 		}
 
 		Dictionary<int, List<Log>> _dic = new Dictionary<int, List<Log>>();
+		Dictionary<int, List<Log>> _dic_real_chain = new Dictionary<int, List<Log>>();
 
 		public Form1()
 		{
@@ -130,6 +179,9 @@ namespace viewer
 				int count = int.Parse(sr.ReadLine());
 				for (int i = 0; i < count; i++)
 				{
+					var turn = int.Parse(sr.ReadLine());
+					var local_chain = int.Parse(sr.ReadLine());
+					var drop_x = int.Parse(sr.ReadLine());
 					var score = double.Parse(sr.ReadLine());
 
 					min_chain = Math.Min(min_chain, chain);
@@ -146,12 +198,30 @@ namespace viewer
 						}
 					}
 
-					logs.Add(new Log(map) { Score = score });
+					logs.Add(new Log()
+					{
+						Map = map,
+						Score = score,
+						Turn = turn + 1,
+						DropX = drop_x,
+						Chain = local_chain,
+					});
 				}
 
-				_dic[chain] = logs.OrderByDescending(l => l.Score).ToList();
+				_dic[chain] = logs.OrderByDescending(l => l.Score).Take(1000).ToList();
+				_dic_real_chain[chain] = logs.OrderByDescending(l => l.Chain).Take(1000).ToList();
 
-				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + _dic[chain].Count);
+				foreach (var log in _dic[chain])
+				{
+					log.SetMap(log.Map);
+				}
+
+				foreach (var log in _dic_real_chain[chain])
+				{
+					log.SetMap(log.Map);
+				}
+
+				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + logs.Count);
 			}
 
 			sr.Close();
@@ -167,12 +237,20 @@ namespace viewer
 			if (listBoxChain.SelectedItem == null) return;
 
 			listBoxList.Items.Clear();
+			listBoxRealChain.Items.Clear();
 
 			string str = listBoxChain.SelectedItem as string;
+
 			int n = int.Parse(str.Split(':')[0]);
+
 			for (int i = 0; i < _dic[n].Count; i++)
 			{
-				listBoxList.Items.Add(i.ToString().PadLeft(5) + " : "  + _dic[n][i].Chain.ToString().PadLeft(2) + " : " + _dic[n][i].Score.ToString(".00"));
+				listBoxList.Items.Add(i.ToString().PadLeft(5) + " : " + _dic[n][i].ScoreChain.ToString().PadLeft(2) + " : " + _dic[n][i].Score.ToString(".00"));
+			}
+
+			for (int i = 0; i < _dic_real_chain[n].Count; i++)
+			{
+				listBoxRealChain.Items.Add(i.ToString().PadLeft(5) + " : " + _dic_real_chain[n][i].Chain.ToString().PadLeft(2));
 			}
 		}
 
@@ -187,6 +265,23 @@ namespace viewer
 			_chain = chain;
 			_index = index;
 			_step = 0;
+			_is_real = false;
+
+			Draw();
+		}
+
+		private void ListBoxRealChain_SelectedIndexChanged(object sender, EventArgs e)
+		{
+			string str_chain = listBoxChain.SelectedItem as string;
+			int chain = int.Parse(str_chain.Split(':')[0]);
+
+			string str_index = listBoxRealChain.SelectedItem as string;
+			int index = int.Parse(str_index.Split(':')[0]);
+
+			_chain = chain;
+			_index = index;
+			_step = 0;
+			_is_real = true;
 
 			Draw();
 		}
@@ -196,7 +291,7 @@ namespace viewer
 			Graphics g = Graphics.FromImage(pictureBox.Image);
 			g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
 
-			int[,] map = _dic[_chain][_index].Maps[_step];
+			int[,] map = _is_real ? _dic_real_chain[_chain][_index].Maps[_step] : _dic[_chain][_index].Maps[_step];
 
 			const int OFFSET = 10;
 			const int SIZE = 30;
@@ -254,7 +349,10 @@ namespace viewer
 		private void ButtonNext_Click(object sender, EventArgs e)
 		{
 			_step++;
-			_step = Math.Min(_dic[_chain][_index].Maps.Count - 1, _step);
+
+			var logs = _is_real ? _dic_real_chain[_chain][_index] : _dic[_chain][_index];
+			_step = Math.Min(logs.Maps.Count - 1, _step);
+
 			Draw();
 		}
 	}

@@ -33,6 +33,7 @@
 			this.listBoxList = new System.Windows.Forms.ListBox();
 			this.buttonPrev = new System.Windows.Forms.Button();
 			this.buttonNext = new System.Windows.Forms.Button();
+			this.listBoxRealChain = new System.Windows.Forms.ListBox();
 			((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
 			this.SuspendLayout();
 			// 
@@ -88,11 +89,23 @@
 			this.buttonNext.UseVisualStyleBackColor = true;
 			this.buttonNext.Click += new System.EventHandler(this.ButtonNext_Click);
 			// 
+			// listBoxRealChain
+			// 
+			this.listBoxRealChain.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+			this.listBoxRealChain.FormattingEnabled = true;
+			this.listBoxRealChain.ItemHeight = 14;
+			this.listBoxRealChain.Location = new System.Drawing.Point(858, 12);
+			this.listBoxRealChain.Name = "listBoxRealChain";
+			this.listBoxRealChain.Size = new System.Drawing.Size(174, 522);
+			this.listBoxRealChain.TabIndex = 5;
+			this.listBoxRealChain.SelectedIndexChanged += new System.EventHandler(this.ListBoxRealChain_SelectedIndexChanged);
+			// 
 			// Form1
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(928, 726);
+			this.ClientSize = new System.Drawing.Size(1194, 726);
+			this.Controls.Add(this.listBoxRealChain);
 			this.Controls.Add(this.buttonNext);
 			this.Controls.Add(this.buttonPrev);
 			this.Controls.Add(this.listBoxList);
@@ -113,6 +126,7 @@
 		private System.Windows.Forms.ListBox listBoxList;
 		private System.Windows.Forms.Button buttonPrev;
 		private System.Windows.Forms.Button buttonNext;
+		private System.Windows.Forms.ListBox listBoxRealChain;
 	}
 }
 

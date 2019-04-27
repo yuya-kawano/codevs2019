@@ -511,22 +511,22 @@ public:
 		{
 			return -1000;
 		}
-		else if (max_y >= HEIGHT - 3)
-		{
-			return -100;
-		}
-		else if (max_y >= HEIGHT - 4)
-		{
-			return -10;
-		}
-		else if (max_y >= HEIGHT - 5)
-		{
-			return -1;
-		}
+		//else if (max_y >= HEIGHT - 3)
+		//{
+		//	return -100;
+		//}
+		//else if (max_y >= HEIGHT - 4)
+		//{
+		//	return -10;
+		//}
+		//else if (max_y >= HEIGHT - 5)
+		//{
+		//	return -1;
+		//}
 		return 0;
 	}
 
-	double GetScore(int drop_x, int *max_drop_x)
+	double GetScore(int drop_x, int *max_drop_x, int *score_chain)
 	{
 		double score = 0.0;
 
@@ -565,6 +565,7 @@ public:
 			max_x = -1;
 		}
 		*max_drop_x = max_x;
+		*score_chain = chain;
 
 		score += chain * 100;
 		//score += ((abs((WIDTH / 2.0) - max_x)) * 0.000001);
@@ -577,7 +578,7 @@ public:
 
 		score += GetYPenalty();
 
-		score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
+		//score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
 
 		return score;
 	}
@@ -723,6 +724,9 @@ int GetRealChain(State& state, int turn, int *max_pos = NULL, int *max_rot = NUL
 	return max_chain;
 }
 
+#define HASH_TEST
+#define DUMP_TEST
+
 int main()
 {
 	cout << "y_kawano" << endl;
@@ -739,6 +743,8 @@ int main()
 	map<int, vector<int>> _dump_pos;
 	map<int, vector<int>> _dump_rot;
 	map<int, vector<double>> _dump_score;
+	map<int, vector<int>> _dump_drop_x;
+	map<int, vector<int>> _dump_chain;
 
 
 	while (true)
@@ -826,17 +832,21 @@ int main()
 						if (chain >= 0)
 						{
 							int drop_x;
-							clone.score += clone.GetScore(clone.prev_drop_x, &drop_x);
+							int score_chain;
+							clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain);
 							clone.prev_drop_x = drop_x;
 
-							if (chain >= 5)
+							if (score_chain > 5 || chain > 5)
 							{
 								_dump[t].push_back(state);
 								_dump_turn[t].push_back(t);
 								_dump_pos[t].push_back(pos);
 								_dump_rot[t].push_back(rot);
 								_dump_score[t].push_back(clone.score);
+								_dump_drop_x[t].push_back(drop_x);
+								_dump_chain[t].push_back(chain);
 							}
+
 							if (chain <= 1)
 							{
 								q[t + 1].push(clone);
@@ -861,7 +871,6 @@ int main()
 		{
 			State best = q[MAX_TURN].top();
 
-			//cerr << "loop:" << loop << endl;
 			cerr << "score:" << fixed << setprecision(2) << best.score << endl;
 			cout << (int)best.pos_history[0] << " " << (int)best.rot_history[0] << endl;
 
@@ -880,21 +889,15 @@ int main()
 
 			for (int j = 0; j < _dump[i].size(); j++)
 			{
-				//int turn = _dump_turn[i][j];
-				//ofs << ((_blocks[turn] >> 0) & mask4) << " "
-				//	<< ((_blocks[turn] >> 4) & mask4) << " "
-				//	<< ((_blocks[turn] >> 8) & mask4) << " "
-				//	<< ((_blocks[turn] >> 12) & mask4) << endl;
-
-				//ofs << _dump_pos[i][j] << endl;
-				//ofs << _dump_rot[i][j] << endl;
-
 				State& state = _dump[i][j];
 
 				ull check;
 				int turn = _dump_turn[i][j];
 				state.Drop(_blocks[turn], _dump_pos[i][j], _dump_rot[i][j], &check);
 
+				ss << turn << endl;
+				ss << _dump_chain[i][j] << endl;
+				ss << _dump_drop_x[i][j] << endl;
 				ss << _dump_score[i][j] << endl;
 				for (int y = 0; y < HEIGHT; y++)
 				{
