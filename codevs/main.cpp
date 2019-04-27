@@ -856,11 +856,11 @@ State GetBestState(int time_limit, int *play_best_turn, int *out_best_chain)
 					}
 #endif
 
+					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
 					clone.pos_history[t] = pos;
 					clone.rot_history[t] = rot;
-					clone.chain_history[t] = rot;
-
-					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+					clone.chain_history[t] = 0;
 
 					if (clone.ojama >= 10)
 					{
@@ -1031,17 +1031,6 @@ bool IsMatch(ull *map1, ull*map2)
 	return true;
 }
 
-void Print()
-{
-	int ally_real_chain = GetRealChain(_infos[0].state, _turn);
-	int ally_skill = _infos[0].state.GetSkillOjama();
-	int enemy_real_chain = GetRealChain(_infos[1].state, _turn);
-	int enemy_skill = _infos[1].state.GetSkillOjama();
-
-	cerr << "t:" << _turn << " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill << endl;
-	cerr << "ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
-}
-
 void PrintMap(State& state)
 {
 	for (int y = HEIGHT - 1; y >= 0; y--)
@@ -1062,6 +1051,80 @@ void PrintMap(State& state)
 	}
 }
 
+State SkillBogaiState(int rest_turn, int *play_turn)
+{
+	State best_state = _infos[0].state;
+	int best_chain = 0;
+	int best_turn = 0;
+
+	queue<State> q;
+	queue<int> q_turn;
+
+	q.push(_infos[0].state);
+	q_turn.push(0);
+
+	while(q.size() > 0)
+	{
+		State state = q.front();
+		q.pop();
+		int turn = q_turn.front();
+		q_turn.pop();
+
+		for (int pos = 0; pos < WIDTH - 1; pos++)
+		{
+			for (int rot = 0; rot < 4; rot++)
+			{
+				State clone = state;
+
+				int chain = clone.Put(_blocks[_turn + turn], pos, rot);
+
+				clone.pos_history[turn] = pos;
+				clone.rot_history[turn] = rot;
+				clone.chain_history[turn] = rot;
+
+				if (clone.ojama >= 10)
+				{
+					bool is_dead = false;
+					for (int x = 0; x < WIDTH; x++)
+					{
+						if (clone.Get(x, HEIGHT - 1) > 0)
+						{
+							is_dead = true;
+							break;
+						}
+					}
+					if (is_dead)
+					{
+						continue;
+					}
+
+					clone.Ojama();
+					clone.ojama -= 10;
+				}
+
+				if (chain >= 0)
+				{
+					if ((best_chain < chain) || (best_chain == chain && best_turn > turn))
+					{
+						best_chain = chain;
+						best_state = clone;
+						best_turn = turn;
+					}
+
+					if (turn + 1 < rest_turn)
+					{
+						q.push(clone);
+						q_turn.push(turn + 1);
+					}
+				}
+			}
+		}
+	}
+
+	*play_turn = best_turn;
+	return best_state;
+}
+
 int main()
 {
 	cout << "y_kawano" << endl;
@@ -1078,54 +1141,79 @@ int main()
 	while (true)
 	{
 		Input();
-		Print();
 
-		bool need_calc = false;
-		if (best_state.skill == -1)
+		int ally_real_chain = GetRealChain(_infos[0].state, _turn);
+		int ally_skill = _infos[0].state.GetSkillOjama();
+		int enemy_real_chain = GetRealChain(_infos[1].state, _turn);
+		int enemy_skill = _infos[1].state.GetSkillOjama();
+		cerr << "t:" << _turn 
+			<< " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill 
+			<< " ao:" << _infos[0].state.ojama << " eo:" << _infos[1].state.ojama
+			<< endl;
+		cerr << "ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+
+		//スキル妨害
+		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2)
 		{
-			need_calc = true;
-		}
-		else if(play_best_turn < play_turn)
-		{
-			need_calc = true;
+			cerr << "### SKILL BOGAI" << endl;
+
+			int rest_turn = (int)ceil((SKILL_COST - _infos[1].state.skill) / (double)SKILL_GAIN);
+			rest_turn = MAX(1, rest_turn);
+			play_turn = 0;
+			best_state = SkillBogaiState(rest_turn, &play_best_turn);
 		}
 		else
 		{
-			if (!IsMatch(work_state.map, _infos[0].state.map))
+			//計算が必要かチェック
+			bool need_calc = false;
+			if (best_state.skill == -1)
 			{
-				cerr << "--- work ---" << endl;
-				PrintMap(work_state);
-				cerr << "--- info ---" << endl;
-				PrintMap(_infos[0].state);
 				need_calc = true;
 			}
-		}
-
-		if (need_calc)
-		{
-			work_state = _infos[0].state;
-
-			int best_chain = 0;
-
-			int time_limit = 5000;
-			if (_turn == 0)
+			else if (play_best_turn < play_turn)
 			{
-				time_limit = 18000;
-			}
-			else if (_infos[0].time >= 100000)
-			{
-				time_limit = 10000;
+				need_calc = true;
 			}
 			else
 			{
-				time_limit = 5000;
+				if (!IsMatch(work_state.map, _infos[0].state.map))
+				{
+					cerr << "miss match!" << endl;
+					cerr << "--- work ---" << endl;
+					PrintMap(work_state);
+					cerr << "--- info ---" << endl;
+					PrintMap(_infos[0].state);
+					need_calc = true;
+				}
 			}
 
-			best_state = GetBestState(time_limit, &play_best_turn, &best_chain);
+			//calc
+			if (need_calc)
+			{
+				work_state = _infos[0].state;
 
-			play_turn = 0;
+				int best_chain = 0;
 
-			cerr << "*** ch:" << best_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+				int time_limit = 5000;
+				if (_turn == 0)
+				{
+					time_limit = 18000;
+				}
+				else if (_infos[0].time >= 100000)
+				{
+					time_limit = 10000;
+				}
+				else
+				{
+					time_limit = 5000;
+				}
+
+				best_state = GetBestState(time_limit, &play_best_turn, &best_chain);
+
+				play_turn = 0;
+
+				cerr << "*** ch:" << best_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+			}
 		}
 
 		cout << (int)best_state.pos_history[play_turn] << " " << (int)best_state.rot_history[play_turn] << endl;
