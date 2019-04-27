@@ -543,18 +543,34 @@ public:
 		return 0;
 	}
 
+	int GetDistanceFromHalf(int x)
+	{
+		//WIDTH = 10
+
+		if (x <= 4)
+		{
+			return 4 - x;
+		}
+		else
+		{
+			return x - 5;
+		}
+	}
+
 	double GetScore(int drop_x, int *max_drop_x, int *score_chain, int *erase_min_x, int *erase_max_x)
 	{
 		double score = 0.0;
 
-		int block_cnt = 0;
+		//int block_cnt = 0;
+		double block_score = 0;
 		for (int x = 0; x < WIDTH; x++)
 		{
 			for (int y = 0; y < HEIGHT; y++)
 			{
 				if (Get(x, y) > 0)
 				{
-					block_cnt++;
+					//block_cnt++;
+					block_score += 1.0 - GetDistanceFromHalf(x) * 0.001;
 				}
 			}
 		}
@@ -571,7 +587,7 @@ public:
 			drop_x_start = drop_x - 1;
 			drop_x_end = drop_x + 1;
 			drop_x_start = MAX(0, drop_x_start);
-			drop_x_end = MIN(WIDTH - 1, drop_x_start);
+			drop_x_end = MIN(WIDTH - 1, drop_x_end);
 		}
 
 		int erase = 0;
@@ -582,20 +598,23 @@ public:
 			*erase_min_x = 0;
 			*erase_max_x = WIDTH - 1;
 		}
+		else
+		{
+			//ASSERT(0 <= half_x && half_x <= 5);
+			score -= GetDistanceFromHalf(*max_drop_x) * 0.001;
+		}
 		*score_chain = chain;
 
 		score += chain * 100;
-		//score += ((abs((WIDTH / 2.0) - max_x)) * 0.000001);
 
-		score += block_cnt * 0.1;
+		//score += block_cnt * 0.1;
+		score += block_score * 0.1;
 		if (chain > 0)
 		{
-			score -= erase / (double)chain * 0.01;
+			score -= erase / (double)chain * 1.0;
 		}
 
 		score += GetYPenalty();
-
-		//score += ((xorshift32() % 1000) / 1000.0) * 0.0001;
 
 		return score;
 	}
@@ -751,7 +770,7 @@ int main()
 #ifdef HASH_TEST
 	map<ull, State> _hash_test;
 #endif
-	unordered_set<ull> _hash;
+	unordered_set<ull> _hash[MAX_TURN];
 
 
 	Init();
@@ -813,17 +832,17 @@ int main()
 				q[t].pop();
 
 				int drop_min_x = MAX(0, state.erase_min_x - 3);
-				int drop_max_x = MIN(WIDTH - 1, state.erase_max_x + 2);
+				int drop_max_x = MIN(WIDTH - 2, state.erase_max_x + 2);
 
-				for (int pos = drop_min_x; pos < drop_max_x; pos++)
+				for (int pos = drop_min_x; pos <= drop_max_x; pos++)
 				{
 					for (int rot = 0; rot < 4; rot++)
 					{
 						State clone = state;
 
 #ifdef HASH_TEST
-						ull hash = clone.GetHash();
-						auto it = _hash_test.find(hash);
+						ull test = clone.GetHash();
+						auto it = _hash_test.find(test);
 						if (it != _hash_test.end())
 						{
 							State& hash_state = it->second;
@@ -840,7 +859,7 @@ int main()
 						}
 						else
 						{
-							_hash_test[hash] = clone;
+							_hash_test[test] = clone;
 						}
 #endif
 
@@ -851,12 +870,14 @@ int main()
 						int chain = clone.Put(_blocks[_turn + t], pos, rot);
 
 						ull hash = clone.GetHash();
-						if (_hash.find(hash) != _hash.end())
+						if (_hash[t].find(hash) != _hash[t].end())
 						{
 							skip++;
+#ifndef HASH_TEST
 							continue;
+#endif
 						}
-						_hash.insert(hash);
+						_hash[t].insert(hash);
 
 						loop++;
 
@@ -880,7 +901,7 @@ int main()
 							}
 
 #ifdef DUMP_TEST
-							if (score_chain > 5 || chain > 5)
+							//if (score_chain > 5 || chain > 5)
 							{
 								_dump[t].push_back(state);
 								_dump_turn[t].push_back(t);
@@ -932,6 +953,7 @@ int main()
 		stringstream ss;
 		for (int i = 0; i < MAX_TURN; i++)
 		{
+			cerr << i << " : " << _dump[i].size() << endl;
 			ss << i << endl;
 			ss << _dump[i].size() << endl;
 
@@ -946,7 +968,7 @@ int main()
 				ss << turn << endl;
 				ss << _dump_chain[i][j] << endl;
 				ss << _dump_drop_x[i][j] << endl;
-				ss << _dump_score[i][j] << endl;
+				ss << std::setprecision(10) << _dump_score[i][j] << endl;
 				for (int y = 0; y < HEIGHT; y++)
 				{
 					for (int x = 0; x < WIDTH; x++)
