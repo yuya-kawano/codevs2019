@@ -873,6 +873,12 @@ int main()
 							clone.erase_min_x = erase_min_x;
 							clone.erase_max_x = erase_max_x;
 
+							if (drop_x < 0)
+							{
+								clone.erase_min_x = pos;
+								clone.erase_max_x = pos + 1;
+							}
+
 #ifdef DUMP_TEST
 							if (score_chain > 5 || chain > 5)
 							{
