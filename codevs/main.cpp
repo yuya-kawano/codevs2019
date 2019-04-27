@@ -768,7 +768,7 @@ int GetRealChain(State& state, int turn)
 //#define HASH_TEST
 //#define DUMP_TEST
 
-State GetBestState(int time_limit, int *play_best_turn, int *out_best_chain)
+State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *out_best_chain)
 {
 #ifdef DUMP_TEST
 	map<int, vector<State>> _dump;
@@ -811,9 +811,11 @@ State GetBestState(int time_limit, int *play_best_turn, int *out_best_chain)
 			break;
 		}
 
+		bool has_update = false;
 		for (int t = 0; t < MAX_TURN; t++)
 		{
 			if (q[t].size() == 0) continue;
+			has_update = true;
 
 			State state = q[t].top();
 			q[t].pop();
@@ -941,6 +943,10 @@ State GetBestState(int time_limit, int *play_best_turn, int *out_best_chain)
 				}
 			}
 		}
+		if (!has_update)
+		{
+			break;
+		}
 	}
 
 #ifdef DUMP_TEST
@@ -982,15 +988,15 @@ State GetBestState(int time_limit, int *play_best_turn, int *out_best_chain)
 	*play_best_turn = 0;
 
 	int best_turn = -1;
-	double best_ratio = 0;
+	double best_chain_score = 0;
 	for (int t = 0; t < MAX_TURN; t++)
 	{
-		if (best_chain[t] >= 12)
+		if (best_chain[t] >= target_chain)
 		{
-			double ratio = best_chain[t] / (t + 1);
-			if (ratio > best_ratio)
+			double score = best_chain[t] / (t + 1);
+			if (score > best_chain_score)
 			{
-				best_ratio = ratio;
+				best_chain_score = score;
 				best_turn = t;
 			}
 		}
@@ -1125,6 +1131,19 @@ State SkillBogaiState(int rest_turn, int *play_turn)
 	return best_state;
 }
 
+int GetChain(State& state)
+{
+	int real_chain = GetRealChain(state, _turn);
+	int erase_cnt;
+	int max_drop_x;
+	int erase_min_x;
+	int erase_max_x;
+
+	int chain_count = state.GetChainCount(0, WIDTH - 1, &erase_cnt, &max_drop_x, &erase_min_x, &erase_max_x);
+
+	return MAX(real_chain, chain_count);
+}
+
 int main()
 {
 	cout << "y_kawano" << endl;
@@ -1142,9 +1161,9 @@ int main()
 	{
 		Input();
 
-		int ally_real_chain = GetRealChain(_infos[0].state, _turn);
+		int ally_real_chain = GetChain(_infos[0].state);
 		int ally_skill = _infos[0].state.GetSkillOjama();
-		int enemy_real_chain = GetRealChain(_infos[1].state, _turn);
+		int enemy_real_chain = GetChain(_infos[1].state);
 		int enemy_skill = _infos[1].state.GetSkillOjama();
 		cerr << "t:" << _turn 
 			<< " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill 
@@ -1152,8 +1171,7 @@ int main()
 			<< endl;
 		cerr << "ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
 
-		//ƒXƒLƒ‹–WŠQ
-		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2)
+		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2) //ƒXƒLƒ‹–WŠQ
 		{
 			cerr << "### SKILL BOGAI" << endl;
 
@@ -1187,13 +1205,13 @@ int main()
 				}
 			}
 
-			//calc
+			//ÄŒvZ
 			if (need_calc)
 			{
+				play_turn = 0;
 				work_state = _infos[0].state;
 
-				int best_chain = 0;
-
+				//time_limit
 				int time_limit = 5000;
 				if (_turn == 0)
 				{
@@ -1208,11 +1226,36 @@ int main()
 					time_limit = 5000;
 				}
 
-				best_state = GetBestState(time_limit, &play_best_turn, &best_chain);
+				//target_chain
+				int target_chain = 12;
+				if (_turn == 0)
+				{
+					target_chain = 12;
+				}
+				else if (_infos[1].state.ojama >= 10)
+				{
+					target_chain = 15;
+				}
+				else
+				{
+					target_chain = 12;
+				}
 
-				play_turn = 0;
+				//calc
+				int best_chain = 0;
+				best_state = GetBestState(time_limit, target_chain, &play_best_turn, &best_chain);
 
 				cerr << "*** ch:" << best_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+			}
+
+			//ƒXƒLƒ‹g—p
+			bool can_use_skill = _infos[0].state.skill >= SKILL_COST;
+			if (can_use_skill && (play_best_turn == 0 || play_best_turn > 2) && ally_skill >= 40)
+			{
+				cout << "s" << endl;
+				cerr << "%%% SKILL %%%";
+				best_state.skill = -1;
+				continue;
 			}
 		}
 
