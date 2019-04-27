@@ -566,7 +566,7 @@ public:
 		}
 		*max_drop_x = max_x;
 
-		score += chain * 10;
+		score += chain * 100;
 		//score += ((abs((WIDTH / 2.0) - max_x)) * 0.000001);
 
 		score += block_cnt * 0.1;
@@ -831,11 +831,11 @@ int main()
 
 							if (chain >= 5)
 							{
-								_dump[chain].push_back(state);
-								_dump_turn[chain].push_back(t);
-								_dump_pos[chain].push_back(pos);
-								_dump_rot[chain].push_back(rot);
-								_dump_score[chain].push_back(clone.score);
+								_dump[t].push_back(state);
+								_dump_turn[t].push_back(t);
+								_dump_pos[t].push_back(pos);
+								_dump_rot[t].push_back(rot);
+								_dump_score[t].push_back(clone.score);
 							}
 							if (chain <= 1)
 							{
@@ -871,11 +871,12 @@ int main()
 			_prev_state.rot_history = best.rot_history;
 		}
 
-		ofstream ofs("C:/project/codevs2019/codevs/dump.txt");
-		for (int i = 5; i < 20; i++)
+
+		stringstream ss;
+		for (int i = 0; i < MAX_TURN; i++)
 		{
-			ofs << i << endl;
-			ofs << _dump[i].size() << endl;
+			ss << i << endl;
+			ss << _dump[i].size() << endl;
 
 			for (int j = 0; j < _dump[i].size(); j++)
 			{
@@ -894,19 +895,20 @@ int main()
 				int turn = _dump_turn[i][j];
 				state.Drop(_blocks[turn], _dump_pos[i][j], _dump_rot[i][j], &check);
 
-				ofs << _dump_score[i][j] << endl;
+				ss << _dump_score[i][j] << endl;
 				for (int y = 0; y < HEIGHT; y++)
 				{
 					for (int x = 0; x < WIDTH; x++)
 					{
-						ofs << state.Get(x, y) << " ";
+						ss << state.Get(x, y) << " ";
 					}
-					ofs << endl;
+					ss << endl;
 				}
 			}
-
-				
 		}
+
+		ofstream ofs("C:/project/codevs2019/codevs/dump.txt");
+		ofs << ss.str();
 		ofs.close();
 	}
 }

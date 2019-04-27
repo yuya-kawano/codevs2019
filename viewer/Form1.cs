@@ -26,6 +26,7 @@ namespace viewer
 		{
 			public List<int[,]> Maps = new List<int[,]>();
 			public double Score;
+			public int Chain;
 
 			public Log(int[,] map_)
 			{
@@ -37,6 +38,7 @@ namespace viewer
 				int[] _dx = new int[] { 1, 0, -1, 0, 1, 1, -1, -1 };
 				int[] _dy = new int[] { 0, 1, 0, -1, 1, -1, 1, -1 };
 
+				int chain = 0;
 				while (true)
 				{
 					bool end = true;
@@ -98,7 +100,9 @@ namespace viewer
 					}
 
 					Maps.Add(map.Clone() as int[,]);
+					chain++;
 				}
+				Chain = chain;
 			}
 		}
 
@@ -168,7 +172,7 @@ namespace viewer
 			int n = int.Parse(str.Split(':')[0]);
 			for (int i = 0; i < _dic[n].Count; i++)
 			{
-				listBoxList.Items.Add(i + " : " + _dic[n][i].Score.ToString(".00"));
+				listBoxList.Items.Add(i.ToString().PadLeft(5) + " : "  + _dic[n][i].Chain.ToString().PadLeft(2) + " : " + _dic[n][i].Score.ToString(".00"));
 			}
 		}
 
