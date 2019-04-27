@@ -1153,9 +1153,16 @@ int main()
 	State best_state;
 	int play_best_turn = 0;
 	int play_turn = 0;
+	int play_chain = 0;
 
 	best_state.skill = -1;
 	memset(best_state.map, -1, sizeof(best_state.map));
+
+	bool enemy_is_skill_type = true;
+
+	const int OPENING_TURN = 8;
+	const int KILL_CHAIN = 15;
+	const int ATTACK_CHAIN = 12;
 
 	while (true)
 	{
@@ -1169,7 +1176,13 @@ int main()
 			<< " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill 
 			<< " ao:" << _infos[0].state.ojama << " eo:" << _infos[1].state.ojama
 			<< endl;
-		cerr << "ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+		if (enemy_is_skill_type) cerr << "!";
+		cerr << "pc:" << play_chain << " ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+
+		if (enemy_real_chain >= OPENING_TURN)
+		{
+			enemy_is_skill_type = false;
+		}
 
 		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2) //スキル妨害
 		{
@@ -1185,6 +1198,10 @@ int main()
 			//計算が必要かチェック
 			bool need_calc = false;
 			if (best_state.skill == -1)
+			{
+				need_calc = true;
+			}
+			else if (!enemy_is_skill_type && play_chain < KILL_CHAIN && _turn == OPENING_TURN)
 			{
 				need_calc = true;
 			}
@@ -1213,7 +1230,7 @@ int main()
 
 				//time_limit
 				int time_limit = 5000;
-				if (_turn == 0)
+				if (_turn  == 0)
 				{
 					time_limit = 18000;
 				}
@@ -1227,25 +1244,21 @@ int main()
 				}
 
 				//target_chain
-				int target_chain = 12;
-				if (_turn == 0)
+				int target_chain = ATTACK_CHAIN;
+				if (_turn < OPENING_TURN)
 				{
-					target_chain = 12;
+					target_chain = ATTACK_CHAIN;
 				}
-				else if (_infos[1].state.ojama >= 10)
+				else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
 				{
-					target_chain = 15;
-				}
-				else
-				{
-					target_chain = 12;
+					target_chain = KILL_CHAIN;
 				}
 
 				//calc
-				int best_chain = 0;
-				best_state = GetBestState(time_limit, target_chain, &play_best_turn, &best_chain);
+				play_chain = 0;
+				best_state = GetBestState(time_limit, target_chain, &play_best_turn, &play_chain);
 
-				cerr << "*** ch:" << best_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+				cerr << "*** ch:" << play_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
 			}
 
 			//スキル使用
