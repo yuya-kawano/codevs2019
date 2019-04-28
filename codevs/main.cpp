@@ -443,6 +443,7 @@ public:
 
 	bool Ojama()
 	{
+		bool is_end = false;
 		for (int x = 0; x < WIDTH; x++)
 		{
 			if (map[x] == 0)
@@ -456,14 +457,16 @@ public:
 				p += 1;
 
 				if (p >= HEIGHT)
-					return false;
+				{
+					is_end = true;
+					continue;
+				}
 
 				p *= 4;
 				map[x] |= ((ull)OJAMA << p);
 			}
 		}
-
-		return true;
+		return is_end;
 	}
 
 	int GetChainCount(int drop_x_start, int drop_x_end, int *erase_cnt, int *max_drop_x, int *erase_min_x, int* erase_max_x)
@@ -876,21 +879,10 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 					if (clone.ojama >= 10)
 					{
-						bool is_dead = false;
-						for (int x = 0; x < WIDTH; x++)
-						{
-							if (clone.Get(x, HEIGHT - 1) > 0)
-							{
-								is_dead = true;
-								break;
-							}
-						}
-						if (is_dead)
+						if (clone.Ojama())
 						{
 							continue;
 						}
-
-						clone.Ojama();
 						clone.ojama -= 10;
 					}
 
@@ -1080,16 +1072,16 @@ void PrintMap(State& state)
 	}
 }
 
-State AllSearch(int rest_turn, int *play_turn, int *play_chain)
+State AllSearch(State& org_state, int rest_turn, int *play_turn, int *play_chain)
 {
-	State best_state = _infos[0].state;
+	State best_state = org_state;
 	int best_chain = 0;
 	int best_turn = 0;
 
 	queue<State> q;
 	queue<int> q_turn;
 
-	q.push(_infos[0].state);
+	q.push(org_state);
 	q_turn.push(0);
 
 	while(q.size() > 0)
@@ -1113,21 +1105,10 @@ State AllSearch(int rest_turn, int *play_turn, int *play_chain)
 
 				if (clone.ojama >= 10)
 				{
-					bool is_dead = false;
-					for (int x = 0; x < WIDTH; x++)
-					{
-						if (clone.Get(x, HEIGHT - 1) > 0)
-						{
-							is_dead = true;
-							break;
-						}
-					}
-					if (is_dead)
+					if (clone.Ojama())
 					{
 						continue;
 					}
-
-					clone.Ojama();
 					clone.ojama -= 10;
 				}
 
@@ -1189,6 +1170,8 @@ int main()
 	{
 		Input();
 
+		cerr << endl;
+
 		int ally_chain = GetChain(_infos[0].state);
 		int ally_real_chain = GetRealChain(_infos[0].state, _turn);
 		int ally_skill = _infos[0].state.GetSkillOjama();
@@ -1208,112 +1191,169 @@ int main()
 
 		//print
 		if (enemy_is_skill_type) cerr << "!";
-		cerr << "pc:" << play_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+		cerr << "pc:" << play_chain << " re:" << (play_best_turn - play_turn) << " as:" << ally_skill << " es:" << enemy_skill << endl;
 		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " arc:" << ally_real_chain << " erc:" << enemy_real_chain << endl;
 
-		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2) //スキル妨害
+		//スキル妨害
+		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2)
 		{
 			cerr << "### SKILL BOGAI" << endl;
 
 			int rest_turn = (int)ceil((SKILL_COST - _infos[1].state.skill) / (double)SKILL_GAIN);
 			rest_turn = MAX(1, rest_turn);
+
 			play_turn = 0;
 			play_chain = 0;
-			best_state = AllSearch(rest_turn, &play_best_turn, &play_chain);
+			best_state = AllSearch(_infos[0].state, rest_turn, &play_best_turn, &play_chain);
 		}
 		else
 		{
-			//計算が必要かチェック
-			bool need_calc = false;
-			if (best_state.skill == -1)
+			//即発火
+			bool fast_move = false;
+			if (enemy_real_chain >= ATTACK_CHAIN && (play_best_turn - play_turn) >= 1)
 			{
-				need_calc = true;
-			}
-			else if (enemy_is_skill_type && play_chain < KILL_CHAIN && _turn == OPENING_TURN)
-			{
-				need_calc = true;
-			}
-			else if (play_best_turn < play_turn)
-			{
-				need_calc = true;
-			}
-			else
-			{
-				if (!IsMatch(work_state.map, _infos[0].state.map))
+				int fast_play_turn = 0;
+				int fast_play_chain = 0;
+				State fast_state = AllSearch(_infos[0].state, 1, &fast_play_turn, &fast_play_chain);
+				if (fast_play_chain >= ATTACK_CHAIN)
 				{
-					cerr << "miss match!" << endl;
-					cerr << "--- work ---" << endl;
-					PrintMap(work_state);
-					cerr << "--- info ---" << endl;
-					PrintMap(_infos[0].state);
+					cerr << "&&& fast &&&" << endl;
+					play_turn = 0;
+					play_turn = fast_play_turn;
+					play_chain = fast_play_chain;
+					best_state = fast_state;
+					fast_move = true;
+				}
+			}
+
+			if (!fast_move)
+			{
+				//計算が必要かチェック
+				bool need_calc = false;
+				if (best_state.skill == -1)
+				{
 					need_calc = true;
 				}
-			}
-
-			//target_chain
-			int target_chain = ATTACK_CHAIN;
-			if (_turn < OPENING_TURN)
-			{
-				target_chain = ATTACK_CHAIN;
-			}
-			else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
-			{
-				target_chain = KILL_CHAIN;
-			}
-
-			//再計算
-			if (need_calc)
-			{
-				play_turn = 0;
-				work_state = _infos[0].state;
-
-				//time_limit
-				int time_limit = 5000;
-				if (_turn  == 0)
+				else if (enemy_is_skill_type && play_chain < KILL_CHAIN && _turn == OPENING_TURN)
 				{
-					time_limit = 18000;
+					need_calc = true;
 				}
-				else if (_infos[0].time >= 100000)
+				else if (play_best_turn < play_turn)
 				{
-					time_limit = 10000;
+					need_calc = true;
 				}
 				else
 				{
-					time_limit = 5000;
+					if (!IsMatch(work_state.map, _infos[0].state.map))
+					{
+						cerr << "miss match!" << endl;
+						cerr << "--- work ---" << endl;
+						PrintMap(work_state);
+						cerr << "--- info ---" << endl;
+						PrintMap(_infos[0].state);
+						cerr << endl;
+						need_calc = true;
+					}
 				}
 
-				//calc
-				play_chain = 0;
-				best_state = GetBestState(time_limit, target_chain, &play_best_turn, &play_chain);
+				//target_chain
+				int target_chain = ATTACK_CHAIN;
+				if (_turn < OPENING_TURN)
+				{
+					target_chain = ATTACK_CHAIN;
+				}
+				else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
+				{
+					target_chain = KILL_CHAIN;
+				}
 
-				cerr << "*** ch:" << play_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
-			}
-
-			//nexnex
-			int nexnex_chain;
-			int nexnex_play_turn;
-			State nexnex_state = AllSearch(2, &nexnex_play_turn, &nexnex_chain);
-
-			if (enemy_real_chain < 12)
-			{
-				if (nexnex_chain >= target_chain)
+				//再計算
+				if (need_calc)
 				{
 					play_turn = 0;
-					play_best_turn = nexnex_play_turn;
-					play_chain = nexnex_chain;
-					best_state = nexnex_state;
-					cerr << "&&& use nexnex1 : " << play_chain << " &&&" << endl;
-				}
-			}
+					work_state = _infos[0].state;
 
-			//スキル使用
-			bool can_use_skill = _infos[0].state.skill >= SKILL_COST;
-			if (can_use_skill && (play_best_turn == 0 || play_best_turn > 2) && ally_skill >= 40)
-			{
-				cout << "S" << endl;
-				cerr << "%%% SKILL %%%" << endl;
-				best_state.skill = -1;
-				continue;
+					//time_limit
+					int time_limit = 5000;
+					if (_turn == 0)
+					{
+						time_limit = 18000;
+					}
+					else if (_infos[0].time >= 100000)
+					{
+						time_limit = 10000;
+					}
+					else
+					{
+						time_limit = 5000;
+					}
+#ifdef SPEED_MODE
+					time_limit = 2000;
+#endif
+
+					//calc
+					play_chain = 0;
+					best_state = GetBestState(time_limit, target_chain, &play_best_turn, &play_chain);
+
+					cerr << "*** ch:" << play_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+				}
+
+				//nexnex
+				int nexnex_chain;
+				int nexnex_play_turn;
+				State nexnex_state = AllSearch(_infos[0].state, 2, &nexnex_play_turn, &nexnex_chain);
+
+				int enemy_nexnex_chain;
+				int ehemy_nexnex_play_turn;
+				AllSearch(_infos[1].state, 2, &ehemy_nexnex_play_turn, &enemy_nexnex_chain);
+
+				//より有利
+				if (enemy_real_chain < 12)
+				{
+					int rest_turn = play_best_turn - play_turn;
+					if (nexnex_chain >= target_chain && nexnex_chain < KILL_CHAIN)
+					{
+						if ((nexnex_chain > play_chain && nexnex_play_turn <= rest_turn)
+							|| (nexnex_chain >= play_chain && nexnex_play_turn < rest_turn))
+						{
+							cerr << "&&& use nexnex &&&" << endl;
+							cerr << "nnc:" << nexnex_chain
+								<< " pc:" << play_chain
+								<< " nnrest:" << nexnex_play_turn
+								<< " rest:" << rest_turn << endl;
+
+							play_turn = 0;
+							play_best_turn = nexnex_play_turn;
+							play_chain = nexnex_chain;
+							best_state = nexnex_state;
+						}
+					}
+				}
+
+				//敵がやばい
+				if (enemy_nexnex_chain >= ATTACK_CHAIN && ehemy_nexnex_play_turn >= 2 && nexnex_chain >= ATTACK_CHAIN)
+				{
+					int rest_turn = play_best_turn - play_turn;
+					if (ehemy_nexnex_play_turn < rest_turn)
+					{
+						cerr << "&&& use nexnex enemy &&&" << endl;
+
+						play_turn = 0;
+						play_best_turn = nexnex_play_turn;
+						play_chain = nexnex_chain;
+						best_state = nexnex_state;
+					}
+				}
+
+				//スキル使用
+				bool can_use_skill = _infos[0].state.skill >= SKILL_COST;
+				if (can_use_skill && (play_best_turn == 0 || play_best_turn > 2) && ally_skill >= 40)
+				{
+					cout << "S" << endl;
+					cerr << "%%% SKILL %%%" << endl;
+					best_state.skill = -1;
+					continue;
+				}
 			}
 		}
 
@@ -1329,7 +1369,5 @@ int main()
 		}
 
 		play_turn++;
-
-		cerr << endl;
 	}
 }
