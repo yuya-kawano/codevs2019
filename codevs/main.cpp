@@ -86,7 +86,7 @@ const int SKILL_MAX = 100;
 
 const u64 mask4 = 0b1111;
 
-const int MAX_TURN = 15;
+const int MAX_TURN = 12;
 
 int CHAIN_OJAMA_TABLE[] = { 0,1,2,3,4,6,9,13,18,25,33,45,60,79,105,138,181,237,310,405,528,689,897,1168,1521,1979,2575,3350,4358,5667,7370,9583,12461,16202,21066,27389,35609,46295,60186,78245,101722,132242,171919,223498,290551,377720,491040,638356,829867, };
 
@@ -800,6 +800,9 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 	int best_chain[MAX_TURN] = {};
 	double best_score[MAX_TURN] = {};
 
+	State emergency_state;
+	emergency_state.score = -DBL_MAX;
+
 	//loop
 	int loop = 0;
 	int skip = 0;
@@ -922,6 +925,11 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 							clone.erase_max_x = pos + 1;
 						}
 
+						if (emergency_state.score < clone.score)
+						{
+							emergency_state = clone;
+						}
+
 #ifdef DUMP_TEST
 						_dump[t].push_back(state);
 						_dump_turn[t].push_back(t);
@@ -934,7 +942,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 						if (chain <= 1)
 						{
-							if (t < 3 || clone.chain_history[t - 3] < score_chain)
+							if (t < 2 || clone.chain_history[t - 2] < score_chain)
 							{
 								q[t + 1].push(clone);
 							}
@@ -1010,12 +1018,20 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 	if (q[MAX_TURN].size() == 0)
 	{
-		_infos[0].state.score = 0.0;
-		_infos[0].state.pos_history[0] = 0;
-		_infos[0].state.rot_history[0] = 0;
 		*play_best_turn = 0;
 		*out_best_chain = 0;
-		return _infos[0].state;
+
+		if (emergency_state.score > -(DBL_MAX / 2.0))
+		{
+			return emergency_state;
+		}
+		else
+		{
+			_infos[0].state.score = 0.0;
+			_infos[0].state.pos_history[0] = 0;
+			_infos[0].state.rot_history[0] = 0;
+			return _infos[0].state;
+		}
 	}
 	else
 	{
@@ -1160,7 +1176,8 @@ int main()
 
 	bool enemy_is_skill_type = true;
 
-	const int OPENING_TURN = 8;
+	const int OPENING_TURN = 10;
+	const int SKILL_TYPE_THRESHOLD = 6;
 	const int KILL_CHAIN = 15;
 	const int ATTACK_CHAIN = 12;
 
@@ -1176,13 +1193,14 @@ int main()
 			<< " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill 
 			<< " ao:" << _infos[0].state.ojama << " eo:" << _infos[1].state.ojama
 			<< endl;
-		if (enemy_is_skill_type) cerr << "!";
-		cerr << "pc:" << play_chain << " ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
 
-		if (enemy_real_chain >= OPENING_TURN)
+		if (enemy_real_chain >= SKILL_TYPE_THRESHOLD)
 		{
 			enemy_is_skill_type = false;
 		}
+
+		if (enemy_is_skill_type) cerr << "!";
+		cerr << "pc:" << play_chain << " ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
 
 		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2) //ƒXƒLƒ‹–WŠQ
 		{
@@ -1201,7 +1219,7 @@ int main()
 			{
 				need_calc = true;
 			}
-			else if (!enemy_is_skill_type && play_chain < KILL_CHAIN && _turn == OPENING_TURN)
+			else if (enemy_is_skill_type && play_chain < KILL_CHAIN && _turn == OPENING_TURN)
 			{
 				need_calc = true;
 			}
