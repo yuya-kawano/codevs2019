@@ -1246,12 +1246,12 @@ int main()
 				{
 					if (!IsMatch(work_state.map, _infos[0].state.map))
 					{
-						cerr << "miss match!" << endl;
-						cerr << "--- work ---" << endl;
-						PrintMap(work_state);
-						cerr << "--- info ---" << endl;
-						PrintMap(_infos[0].state);
-						cerr << endl;
+						cerr << "((( miss match! )))" << endl;
+						//cerr << "--- work ---" << endl;
+						//PrintMap(work_state);
+						//cerr << "--- info ---" << endl;
+						//PrintMap(_infos[0].state);
+						//cerr << endl;
 						need_calc = true;
 					}
 				}
