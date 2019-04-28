@@ -1292,7 +1292,7 @@ int main()
 			if (can_use_skill && (play_best_turn == 0 || play_best_turn > 2) && ally_skill >= 40)
 			{
 				cout << "S" << endl;
-				cerr << "%%% SKILL %%%";
+				cerr << "%%% SKILL %%%" << endl;
 				best_state.skill = -1;
 				continue;
 			}
