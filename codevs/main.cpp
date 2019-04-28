@@ -1080,7 +1080,7 @@ void PrintMap(State& state)
 	}
 }
 
-State SkillBogaiState(int rest_turn, int *play_turn)
+State AllSearch(int rest_turn, int *play_turn, int *play_chain)
 {
 	State best_state = _infos[0].state;
 	int best_chain = 0;
@@ -1150,21 +1150,18 @@ State SkillBogaiState(int rest_turn, int *play_turn)
 		}
 	}
 
+	*play_chain = best_chain;
 	*play_turn = best_turn;
 	return best_state;
 }
 
 int GetChain(State& state)
 {
-	int real_chain = GetRealChain(state, _turn);
 	int erase_cnt;
 	int max_drop_x;
 	int erase_min_x;
 	int erase_max_x;
-
-	int chain_count = state.GetChainCount(0, WIDTH - 1, &erase_cnt, &max_drop_x, &erase_min_x, &erase_max_x);
-
-	return MAX(real_chain, chain_count);
+	return state.GetChainCount(0, WIDTH - 1, &erase_cnt, &max_drop_x, &erase_min_x, &erase_max_x);
 }
 
 int main()
@@ -1192,22 +1189,27 @@ int main()
 	{
 		Input();
 
-		int ally_real_chain = GetChain(_infos[0].state);
+		int ally_chain = GetChain(_infos[0].state);
+		int ally_real_chain = GetRealChain(_infos[0].state, _turn);
 		int ally_skill = _infos[0].state.GetSkillOjama();
-		int enemy_real_chain = GetChain(_infos[1].state);
+		int enemy_chain = GetChain(_infos[1].state);
+		int enemy_real_chain = GetRealChain(_infos[1].state, _turn);
 		int enemy_skill = _infos[1].state.GetSkillOjama();
 		cerr << "t:" << _turn 
 			<< " a_:" << _infos[0].state.skill << " e_:" << _infos[1].state.skill 
 			<< " ao:" << _infos[0].state.ojama << " eo:" << _infos[1].state.ojama
 			<< endl;
 
-		if (enemy_real_chain >= SKILL_TYPE_THRESHOLD)
+		if (enemy_chain >= SKILL_TYPE_THRESHOLD)
 		{
 			enemy_is_skill_type = false;
 		}
 
+
+		//print
 		if (enemy_is_skill_type) cerr << "!";
-		cerr << "pc:" << play_chain << " ac:" << ally_real_chain << " ec:" << enemy_real_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+		cerr << "pc:" << play_chain << " as:" << ally_skill << " es:" << enemy_skill << endl;
+		cerr << "ac:" << ally_chain << " ec:" << enemy_chain << " arc:" << ally_real_chain << " erc:" << enemy_real_chain << endl;
 
 		if (enemy_skill >= 50 && _infos[1].state.skill >= SKILL_COST - SKILL_GAIN * 2) //スキル妨害
 		{
@@ -1217,7 +1219,7 @@ int main()
 			rest_turn = MAX(1, rest_turn);
 			play_turn = 0;
 			play_chain = 0;
-			best_state = SkillBogaiState(rest_turn, &play_best_turn);
+			best_state = AllSearch(rest_turn, &play_best_turn, &play_chain);
 		}
 		else
 		{
@@ -1248,6 +1250,17 @@ int main()
 				}
 			}
 
+			//target_chain
+			int target_chain = ATTACK_CHAIN;
+			if (_turn < OPENING_TURN)
+			{
+				target_chain = ATTACK_CHAIN;
+			}
+			else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
+			{
+				target_chain = KILL_CHAIN;
+			}
+
 			//再計算
 			if (need_calc)
 			{
@@ -1269,22 +1282,28 @@ int main()
 					time_limit = 5000;
 				}
 
-				//target_chain
-				int target_chain = ATTACK_CHAIN;
-				if (_turn < OPENING_TURN)
-				{
-					target_chain = ATTACK_CHAIN;
-				}
-				else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
-				{
-					target_chain = KILL_CHAIN;
-				}
-
 				//calc
 				play_chain = 0;
 				best_state = GetBestState(time_limit, target_chain, &play_best_turn, &play_chain);
 
 				cerr << "*** ch:" << play_chain << " pl:" << play_best_turn << " score:" << fixed << setprecision(4) << best_state.score << endl;
+			}
+
+			//nexnex
+			int nexnex_chain;
+			int nexnex_play_turn;
+			State nexnex_state = AllSearch(2, &nexnex_play_turn, &nexnex_chain);
+
+			if (enemy_real_chain < 12)
+			{
+				if (nexnex_chain >= target_chain)
+				{
+					play_turn = 0;
+					play_best_turn = nexnex_play_turn;
+					play_chain = nexnex_chain;
+					best_state = nexnex_state;
+					cerr << "&&& use nexnex1 : " << play_chain << " &&&" << endl;
+				}
 			}
 
 			//スキル使用
@@ -1298,6 +1317,8 @@ int main()
 			}
 		}
 
+		
+
 		cout << (int)best_state.pos_history[play_turn] << " " << (int)best_state.rot_history[play_turn] << endl;
 		work_state.Put(_blocks[_turn], best_state.pos_history[play_turn], best_state.rot_history[play_turn]);
 
@@ -1308,5 +1329,7 @@ int main()
 		}
 
 		play_turn++;
+
+		cerr << endl;
 	}
 }
