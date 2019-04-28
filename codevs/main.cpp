@@ -1216,6 +1216,7 @@ int main()
 			int rest_turn = (int)ceil((SKILL_COST - _infos[1].state.skill) / (double)SKILL_GAIN);
 			rest_turn = MAX(1, rest_turn);
 			play_turn = 0;
+			play_chain = 0;
 			best_state = SkillBogaiState(rest_turn, &play_best_turn);
 		}
 		else
