@@ -970,7 +970,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 			ull check;
 			int turn = _dump_turn[i][j];
-			state.Drop(_blocks[turn], _dump_pos[i][j], _dump_rot[i][j], &check);
+			state.Drop(_blocks[_turn + turn], _dump_pos[i][j], _dump_rot[i][j], &check);
 
 			ss << turn << endl;
 			ss << _dump_chain[i][j] << endl;
@@ -1101,7 +1101,6 @@ State AllSearch(State& org_state, int rest_turn, int *play_turn, int *play_chain
 
 				clone.pos_history[turn] = pos;
 				clone.rot_history[turn] = rot;
-				clone.chain_history[turn] = rot;
 
 				if (clone.ojama >= 10)
 				{
@@ -1331,7 +1330,7 @@ int main()
 				}
 
 				//“G‚ª‚â‚Î‚¢
-				if (enemy_nexnex_chain >= ATTACK_CHAIN && ehemy_nexnex_play_turn >= 2 && nexnex_chain >= ATTACK_CHAIN)
+				if (enemy_nexnex_chain >= ATTACK_CHAIN && ehemy_nexnex_play_turn >= 1 && nexnex_chain >= ATTACK_CHAIN)
 				{
 					int rest_turn = play_best_turn - play_turn;
 					if (ehemy_nexnex_play_turn < rest_turn)
