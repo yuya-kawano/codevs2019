@@ -106,6 +106,13 @@ public:
 	Point(int x, int y) { this->x = x; this->y = y; }
 };
 
+
+ull rotl(ull n, int shift)
+{
+	//return _rotl64(n, shilft);
+	return (n << shift) | (n >> (64 - shift));
+}
+
 //1 2
 //3 4
 //[4][3][2][1]
@@ -133,19 +140,19 @@ public:
 
 	ull GetHash()
 	{
-		ull a = _rotl64(map[1], 4);
+		ull a = rotl(map[1], 4);
 
 		ull hash = 0;
 		hash ^= map[0] * 1;
-		hash ^= _rotl64(map[1], 30) * 11ull;
-		hash ^= _rotl64(map[2], 5) * 13ull;
-		hash ^= _rotl64(map[3], 35) * 17ull;
-		hash ^= _rotl64(map[4], 10) * 19ull;
-		hash ^= _rotl64(map[5], 40) * 23ull;
-		hash ^= _rotl64(map[6], 15) * 29ull;
-		hash ^= _rotl64(map[7], 45) * 31ull;
-		hash ^= _rotl64(map[8], 20) * 37ull;
-		hash ^= _rotl64(map[9], 50) * 39ull;
+		hash ^= rotl(map[1], 30) * 11ull;
+		hash ^= rotl(map[2], 5) * 13ull;
+		hash ^= rotl(map[3], 35) * 17ull;
+		hash ^= rotl(map[4], 10) * 19ull;
+		hash ^= rotl(map[5], 40) * 23ull;
+		hash ^= rotl(map[6], 15) * 29ull;
+		hash ^= rotl(map[7], 45) * 31ull;
+		hash ^= rotl(map[8], 20) * 37ull;
+		hash ^= rotl(map[9], 50) * 39ull;
 		return hash;
 	}
 
@@ -1283,7 +1290,7 @@ int main()
 			bool can_use_skill = _infos[0].state.skill >= SKILL_COST;
 			if (can_use_skill && (play_best_turn == 0 || play_best_turn > 2) && ally_skill >= 40)
 			{
-				cout << "s" << endl;
+				cout << "S" << endl;
 				cerr << "%%% SKILL %%%";
 				best_state.skill = -1;
 				continue;
