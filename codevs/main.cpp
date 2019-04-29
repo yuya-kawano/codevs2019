@@ -813,6 +813,8 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 	State emergency_state;
 	emergency_state.score = -DBL_MAX;
 
+	int turn_limit = MAX_TURN;
+
 	//loop
 	int loop = 0;
 	int skip = 0;
@@ -825,7 +827,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 		}
 
 		bool has_update = false;
-		for (int t = 0; t < MAX_TURN; t++)
+		for (int t = 0; t < turn_limit; t++)
 		{
 			if (q[t].size() == 0) continue;
 			has_update = true;
@@ -872,19 +874,11 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 #endif
 
 					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+					loop++;
 
 					clone.pos_history[t] = pos;
 					clone.rot_history[t] = rot;
 					clone.chain_history[t] = 0;
-
-					if (clone.ojama >= 10)
-					{
-						if (clone.Ojama())
-						{
-							continue;
-						}
-						clone.ojama -= 10;
-					}
 
 					ull hash = clone.GetHash();
 					if (_hash[t].find(hash) != _hash[t].end())
@@ -896,7 +890,19 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 					}
 					_hash[t].insert(hash);
 
-					loop++;
+					if (clone.ojama >= 10)
+					{
+						if (clone.Ojama())
+						{
+							continue;
+						}
+						clone.ojama -= 10;
+					}
+
+					if (chain >= target_chain)
+					{
+						turn_limit = t + 1;
+					}
 
 					if (chain >= 0)
 					{
@@ -952,7 +958,14 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 								clone.score -= 1000.0 * sub;
 							}
 
-							q[t + 1].push(clone);
+							if (t + 1 == turn_limit)
+							{
+								q[MAX_TURN].push(clone);
+							}
+							else
+							{
+								q[t + 1].push(clone);
+							}
 						}
 					}
 				}
