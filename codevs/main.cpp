@@ -941,10 +941,18 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 						if (chain <= 1)
 						{
-							if (t < 2 || clone.chain_history[t - 2] < score_chain)
+							//if (t < 2 || clone.chain_history[t - 2] < score_chain)
+							//{
+							//	q[t + 1].push(clone);
+							//}
+
+							if (t >= 2 && clone.chain_history[t - 2] >= score_chain)
 							{
-								q[t + 1].push(clone);
+								int sub = clone.chain_history[t - 2] - score_chain;
+								clone.score -= 1000.0 * sub;
 							}
+
+							q[t + 1].push(clone);
 						}
 					}
 				}
