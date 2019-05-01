@@ -267,7 +267,7 @@ public:
 		return true;
 	}
 
-	int GetDropY(int x)
+	int GetHeight(int x)
 	{
 		if (map[x] == 0)
 		{
@@ -475,7 +475,7 @@ public:
 
 		for (int x = drop_x_start; x <= drop_x_end; x++)
 		{
-			int drop_y = GetDropY(x);
+			int drop_y = GetHeight(x);
 			if (drop_y >= HEIGHT)
 			{
 				continue;
@@ -1246,6 +1246,35 @@ int main()
 				}
 			}
 
+			//target_chain
+			int target_chain = ATTACK_CHAIN;
+			if (_turn < OPENING_TURN)
+			{
+				target_chain = ATTACK_CHAIN;
+			}
+			else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
+			{
+				target_chain = KILL_CHAIN;
+			}
+
+			int enemy_height = 0;
+			for (int x = 0; x < WIDTH; x++)
+			{
+				int h = _infos[1].state.GetHeight(x);
+				enemy_height = MAX(enemy_height, h);
+			}
+			int enemy_top_space = HEIGHT - enemy_height;
+			for (int i = 8; i < target_chain; i++)
+			{
+				int ojama_h = (_infos[1].state.ojama + CHAIN_OJAMA_TABLE[i]) / 10;
+				if (ojama_h > enemy_top_space + 1)
+				{
+					cerr << "=== update chain : " << i << " ===" << endl;
+					target_chain = i;
+					break;
+				}
+			}
+
 			if (!fast_move)
 			{
 				//計算が必要かチェック
@@ -1274,17 +1303,6 @@ int main()
 						//cerr << endl;
 						need_calc = true;
 					}
-				}
-
-				//target_chain
-				int target_chain = ATTACK_CHAIN;
-				if (_turn < OPENING_TURN)
-				{
-					target_chain = ATTACK_CHAIN;
-				}
-				else if (_infos[1].state.ojama >= 30 || enemy_is_skill_type)
-				{
-					target_chain = KILL_CHAIN;
 				}
 
 				//再計算
@@ -1327,10 +1345,23 @@ int main()
 				int ehemy_nexnex_play_turn;
 				AllSearch(_infos[1].state, 2, &ehemy_nexnex_play_turn, &enemy_nexnex_chain);
 
+				
+				int rest_turn = play_best_turn - play_turn;
+
+				//攻撃できる川やん児
+				if (nexnex_chain >= target_chain && nexnex_play_turn < rest_turn)
+				{
+					cerr << "&&& use fast &&&" << endl;
+
+					play_turn = 0;
+					play_best_turn = nexnex_play_turn;
+					play_chain = nexnex_chain;
+					best_state = nexnex_state;
+				}
+
 				//より有利
 				if (enemy_real_chain < 12)
 				{
-					int rest_turn = play_best_turn - play_turn;
 					if (nexnex_chain >= target_chain && nexnex_chain < KILL_CHAIN)
 					{
 						if ((nexnex_chain > play_chain && nexnex_play_turn <= rest_turn)
