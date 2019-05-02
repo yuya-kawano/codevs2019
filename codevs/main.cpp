@@ -1025,25 +1025,35 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 	*play_best_turn = 0;
 
-	int best_turn = -1;
-	double best_chain_score = 0;
+	//int best_turn = -1;
+	//double best_chain_score = 0;
+	//for (int t = 0; t < MAX_TURN; t++)
+	//{
+	//	if (best_chain[t] >= target_chain)
+	//	{
+	//		double score = best_chain[t] / (double)(t + 1);
+	//		if (score > best_chain_score)
+	//		{
+	//			best_chain_score = score;
+	//			best_turn = t;
+	//		}
+	//	}
+	//}
+	//if (best_turn >= 0)
+	//{
+	//	*play_best_turn = best_turn;
+	//	*out_best_chain = best_chain[best_turn];
+	//	return best_state[best_turn];
+	//}
+
 	for (int t = 0; t < MAX_TURN; t++)
 	{
 		if (best_chain[t] >= target_chain)
 		{
-			double score = best_chain[t] / (t + 1);
-			if (score > best_chain_score)
-			{
-				best_chain_score = score;
-				best_turn = t;
-			}
+			*play_best_turn = t;
+			*out_best_chain = best_chain[t];
+			return best_state[t];
 		}
-	}
-	if (best_turn > 0)
-	{
-		*play_best_turn = best_turn;
-		*out_best_chain = best_chain[best_turn];
-		return best_state[best_turn];
 	}
 
 	if (q[MAX_TURN].size() == 0)
