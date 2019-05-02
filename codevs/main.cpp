@@ -567,6 +567,16 @@ public:
 		}
 	}
 
+	double GetScore()
+	{
+
+		int drop_x;
+		int score_chain;
+		int erase_min_x;
+		int erase_max_x;
+		return GetScore(-1, &drop_x, &score_chain, &erase_min_x, &erase_max_x);
+	}
+
 	double GetScore(int drop_x, int *max_drop_x, int *score_chain, int *erase_min_x, int *erase_max_x)
 	{
 		double score = 0.0;
@@ -1093,11 +1103,12 @@ void PrintMap(State& state)
 	}
 }
 
-State AllSearch(State& org_state, int rest_turn, int *play_turn, int *play_chain)
+State AllSearch(State& org_state, int rest_turn, int* play_turn, int* play_chain)
 {
 	State best_state = org_state;
 	int best_chain = 0;
 	int best_turn = 0;
+	double best_score = 0.0;
 
 	queue<State> q;
 	queue<int> q_turn;
@@ -1105,7 +1116,7 @@ State AllSearch(State& org_state, int rest_turn, int *play_turn, int *play_chain
 	q.push(org_state);
 	q_turn.push(0);
 
-	while(q.size() > 0)
+	while (q.size() > 0)
 	{
 		State state = q.front();
 		q.pop();
@@ -1134,11 +1145,21 @@ State AllSearch(State& org_state, int rest_turn, int *play_turn, int *play_chain
 
 				if (chain >= 0)
 				{
-					if ((best_chain < chain) || (best_chain == chain && best_turn > turn))
+					if (best_chain == chain && best_turn == turn)
+					{
+						double score = clone.GetScore();
+						if (score > best_score)
+						{
+							best_state = clone;
+							best_score = score;
+						}
+					}
+					else if ((best_chain < chain) || (best_chain == chain && best_turn > turn))
 					{
 						best_chain = chain;
 						best_state = clone;
 						best_turn = turn;
+						best_score = clone.GetScore();
 					}
 
 					if (turn + 1 < rest_turn)
