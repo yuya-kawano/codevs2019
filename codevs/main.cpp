@@ -854,8 +854,8 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 			State state = q[t].top();
 			q[t].pop();
 
-			int drop_min_x = MAX(0, state.erase_min_x - 3);
-			int drop_max_x = MIN(WIDTH - 2, state.erase_max_x + 2);
+			int drop_min_x = MAX(0, state.erase_min_x - 2);
+			int drop_max_x = MIN(WIDTH - 2, state.erase_max_x + 1);
 
 			if (_turn == 0 && t == 0)
 			{
