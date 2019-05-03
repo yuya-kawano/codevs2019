@@ -543,10 +543,10 @@ public:
 		{
 			return -10000;
 		}
-		else if (max_y >= HEIGHT - 2)
-		{
-			return -1000;
-		}
+		//else if (max_y >= HEIGHT - 2)
+		//{
+		//	return -1000;
+		//}
 		//else if (max_y >= HEIGHT - 3)
 		//{
 		//	return -100;
@@ -859,8 +859,8 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 			if (_turn == 0 && t == 0)
 			{
-				drop_min_x = 3;
-				drop_max_x = 5;
+				drop_min_x = 4;
+				drop_max_x = 4;
 			}
 
 			for (int pos = drop_min_x; pos <= drop_max_x; pos++)
