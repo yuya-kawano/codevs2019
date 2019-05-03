@@ -336,7 +336,8 @@ public:
 		{
 			ull next = -1;
 
-			static Point q[WIDTH * HEIGHT];
+			static int qx[WIDTH * HEIGHT];
+			static int qy[WIDTH * HEIGHT];
 			int q_cnt = 0;
 
 			ull erase_bit[WIDTH] = {};
@@ -346,7 +347,8 @@ public:
 				int bottom = ((check >> (x * 4)) & mask4);
 				if (bottom < mask4)
 				{
-					for (int y = bottom; y < HEIGHT; y++)
+					int h = GetHeight(x);
+					for (int y = bottom; y < h; y++)
 					{
 						for (int d = 0; d < 8; d++)
 						{
@@ -358,8 +360,8 @@ public:
 
 							if (sum == 10)
 							{
-								SubmitSub(q, &q_cnt, &next, x, y);
-								SubmitSub(q, &q_cnt, &next, dx, dy);
+								SubmitSub(qx, qy, &q_cnt, &next, x, y);
+								SubmitSub(qx, qy, &q_cnt, &next, dx, dy);
 							}
 						}
 					}
@@ -370,8 +372,8 @@ public:
 
 			for (int i = 0; i < q_cnt; i++)
 			{
-				int x = q[i].x;
-				int y = q[i].y;
+				int x = qx[i];
+				int y = qy[i];
 
 				int shift = (y * 4);
 
@@ -413,10 +415,10 @@ public:
 		return chein;
 	}
 
-	void SubmitSub(Point *q, int *q_cnt, ull *next, int x, int y)
+	void SubmitSub(int *qx, int* qy, int *q_cnt, ull *next, int x, int y)
 	{
-		q[*q_cnt].x = x;
-		q[*q_cnt].y = y;
+		qx[*q_cnt] = x;
+		qy[*q_cnt] = y;
 		(*q_cnt)++;
 		int next_bottom = (((*next) >> (x * 4)) & mask4);
 		if (next_bottom > y)
@@ -1033,6 +1035,9 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 #endif
 
 	*play_best_turn = 0;
+
+	//cout << loop << endl;
+	//cout << skip << endl;
 
 	//int best_turn = -1;
 	//double best_chain_score = 0;
