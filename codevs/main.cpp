@@ -469,6 +469,15 @@ public:
 		return is_end;
 	}
 
+	int GetChainCount()
+	{
+		int erase_cnt;
+		int max_drop_x;
+		int erase_min_x;
+		int erase_max_x;
+		return GetChainCount(0, WIDTH - 1, &erase_cnt, &max_drop_x, &erase_min_x, &erase_max_x);
+	}
+
 	int GetChainCount(int drop_x_start, int drop_x_end, int *erase_cnt, int *max_drop_x, int *erase_min_x, int* erase_max_x)
 	{
 		int chain_cnt = 0;
@@ -1187,6 +1196,77 @@ State AllSearch(State& org_state, int rest_turn, int* play_turn, int* play_chain
 	return best_state;
 }
 
+
+int GetOjamaChain(State& org_state, int current_turn, int add_ojama, bool only_real)
+{
+	int rest_turn = 2;
+
+	int max_chain = 0;
+
+	State ojama_state = org_state;
+	ojama_state.ojama += add_ojama;
+
+	if (ojama_state.ojama >= 10) //二重で振らせないように注意な
+	{
+		if (ojama_state.Ojama())
+		{
+			return 0; //死
+		}
+		ojama_state.ojama -= 10;
+	}
+
+	queue<State> q;
+	queue<int> q_turn;
+
+	q.push(ojama_state);
+	q_turn.push(0);
+
+	while (q.size() > 0)
+	{
+		State q_state = q.front();
+		q.pop();
+		int turn = q_turn.front();
+		q_turn.pop();
+
+		for (int pos = 0; pos < WIDTH - 1; pos++)
+		{
+			for (int rot = 0; rot < 4; rot++)
+			{
+				State clone = q_state;
+
+				int real_chain = clone.Put(_blocks[_turn + turn], pos, rot);
+				if (real_chain >= 0)
+				{
+					max_chain = MAX(max_chain, real_chain);
+
+					if (!only_real)
+					{
+						int chain_count = clone.GetChainCount();
+						max_chain = MAX(max_chain, chain_count);
+					}
+
+					if (clone.ojama >= 10)
+					{
+						if (clone.Ojama())
+						{
+							continue;
+						}
+						clone.ojama -= 10;
+					}
+
+					if (turn + 1 < rest_turn)
+					{
+						q.push(clone);
+						q_turn.push(turn + 1);
+					}
+				}
+			}
+		}
+	}
+
+	return max_chain;
+}
+
 int GetChain(State& state)
 {
 	int erase_cnt;
@@ -1198,10 +1278,15 @@ int GetChain(State& state)
 
 const int OPENING_TURN = 10;
 const int SKILL_TYPE_THRESHOLD = 6;
-const int DANGER_SKILL_DAMAGE = 30;
+
+const int DANGER_SKILL_DAMAGE = 50;
+
+const int ALLY_SKILL_THRESHOLD = 30;
+
 const int KILL_CHAIN = 15;
 const int ATTACK_CHAIN = 12;
 const int SKILL_BREAK_CHAIN = 3;
+const int CHAIN_BREAK_CHAIN = 5;
 
 bool _enemy_is_skill_type = true;
 
@@ -1220,14 +1305,14 @@ int GetTargetChain()
 	int enemy_height = 0;
 	for (int x = 0; x < WIDTH; x++)
 	{
-		int h = 0;
-		for (int y = 0; y < HEIGHT; y++)
-		{
-			if (_infos[1].state.Get(x, y) == OJAMA)
-			{
-				h++;
-			}
-		}
+		int h = _infos[1].state.GetHeight(x);
+		//for (int y = 0; y < HEIGHT; y++)
+		//{
+		//	if (_infos[1].state.Get(x, y) == OJAMA)
+		//	{
+		//		h++;
+		//	}
+		//}
 		enemy_height = MAX(enemy_height, h);
 	}
 	int enemy_top_space = HEIGHT - enemy_height;
@@ -1286,6 +1371,17 @@ void NextPlayState(int time_limit, int target_chain)
 		enemy_skill_rest_turn = ((SKILL_COST - _infos[1].state.skill - 1) / SKILL_GAIN) + 1;
 	}
 
+	//もう十分じゃ
+	if (ally_next_chain >= KILL_CHAIN)
+	{
+		cerr << "&&& kill attack &&&" << endl;
+		_play_turn = 0;
+		_play_turn_rest = ally_next_turn;
+		_play_chain = ally_next_chain;
+		_play_state = ally_next;
+		return;
+	}
+
 	//スキルつぶし
 	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 2)
 	{
@@ -1315,9 +1411,114 @@ void NextPlayState(int time_limit, int target_chain)
 		}
 	}
 
+	//連鎖潰され
+	if (_play_turn_rest == 1 && _infos[0].state.ojama < 10)
+	{
+		int add_ojama = CHAIN_OJAMA_TABLE[enemy_next_chain];
+		int next_ojama = _infos[0].state.ojama + add_ojama;
+
+		cerr << "??? TUBU1 " <<  next_ojama << endl;
+
+		if (next_ojama >= 10)
+		{
+			int ojama_chain = GetOjamaChain(_infos[0].state, 2, add_ojama, false);
+			cerr << "??? TUBU2 " << ojama_chain << " " << ally_next_chain << endl;
+
+			if (ojama_chain < _play_chain && ally_next_chain >= _play_chain - 1) //-1くらいは許容
+			{
+				cerr << "&&& tubusare kaihi &&&" << endl;
+				_play_turn = 0;
+				_play_turn_rest = ally_next_turn;
+				_play_chain = ally_next_chain;
+				_play_state = ally_next;
+				return;
+			}
+		}
+	}
+
+	//まだ舞える
+	if (_play_turn_rest == 0 && _infos[0].state.ojama < 10)
+	{
+		int eneymy_add_oajam = CHAIN_OJAMA_TABLE[enemy_next_chain];
+		int maeru_ally_chain = GetOjamaChain(_infos[0].state, 2, eneymy_add_oajam, true);
+
+		cerr << "??? MADA " << eneymy_add_oajam << " " << maeru_ally_chain << endl;
+
+		if (_play_chain < maeru_ally_chain && _play_chain < ally_nexnex_chain && target_chain <= ally_next_chain)
+		{
+			cerr << "&&& MADA MAERU &&&" << endl;
+			_play_turn = 0;
+			_play_turn_rest = ally_nexnex_turn;
+			_play_chain = ally_nexnex_chain;
+			_play_state = ally_nexnex;
+			return;
+		}
+	}
+	//if (_play_turn_rest == 0)
+	//{
+	//	int eneymy_add_oajam = CHAIN_OJAMA_TABLE[enemy_next_chain];
+	//	int maeru_ally_chain = GetOjamaChain(_infos[0].state, 1, eneymy_add_oajam, true);
+	//	if (_play_chain < maeru_ally_chain && _play_chain < ally_next_chain && target_chain <= ally_next_chain)
+	//	{
+	//		cerr << "&&& MADA MAERU 1 &&&" << endl;
+	//		_play_turn = 0;
+	//		_play_turn_rest = ally_next_turn;
+	//		_play_chain = ally_next_chain;
+	//		_play_state = ally_next;
+	//		return;
+	//	}
+	//}
+
+	//危ないので発火
+	if (enemy_next_chain >= ATTACK_CHAIN)
+	{
+		if (ally_next_chain >= ATTACK_CHAIN)
+		{
+			cerr << "&&& danager fast attack &&&" << endl;
+			_play_turn = 0;
+			_play_turn_rest = ally_next_turn;
+			_play_chain = ally_next_chain;
+			_play_state = ally_next;
+			return;
+		}
+	}
+
+	//早く撃てる
+	if (_play_turn_rest == 1)
+	{
+		if (_play_chain <= ally_next_chain)
+		{
+			cerr << "&&& simply fast attack &&&" << endl;
+			_play_turn = 0;
+			_play_turn_rest = ally_next_turn;
+			_play_chain = ally_next_chain;
+			_play_state = ally_next;
+			return;
+		}
+	}
+
+	//連鎖つぶし
+	if (_infos[1].state.ojama < 10)
+	{
+		int add_ojama = CHAIN_OJAMA_TABLE[ally_next_chain];
+		int next_ojama = _infos[1].state.ojama + add_ojama;
+		if (next_ojama >= 10)
+		{
+			int ojama_chain = GetOjamaChain(_infos[1].state, 2, add_ojama, false);
+			if (enemy_nexnex_chain >= ATTACK_CHAIN && ojama_chain <= CHAIN_BREAK_CHAIN)
+			{
+				cerr << "&&& chain break &&&" << endl;
+				_play_turn = 0;
+				_play_turn_rest = ally_next_turn;
+				_play_chain = ally_next_chain;
+				_play_state = ally_next;
+				return;
+			}
+		}
+	}
 
 	//再計算
-	if (_play_turn_rest < 0)
+	if (_play_turn_rest < 0 || _play_chain < target_chain)
 	{
 		int best_play_turn;
 		int best_chain;
@@ -1393,6 +1594,15 @@ int main()
 
 		//target_chain
 		int target_chain = GetTargetChain();
+
+		//skillぶっぱ
+		int skill_oajma = ally_skill + _infos[1].state.ojama;
+		if (_infos[0].state.skill >= SKILL_COST && ALLY_SKILL_THRESHOLD <= skill_oajma && CHAIN_OJAMA_TABLE[ally_chain] <= ally_skill)
+		{
+			cerr << "@@@ SKILL @@@" << endl;
+			cout << "S" << endl;
+			continue;
+		}
 
 		//update_state
 		NextPlayState(time_limit, target_chain);
