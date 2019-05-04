@@ -1004,12 +1004,37 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 	stringstream ss;
 	for (int i = 0; i < MAX_TURN; i++)
 	{
+		vector<double> scores;
+		vector<int> chains;
+
+		for (int j = 0; j < _dump[i].size(); j++)
+		{
+			scores.push_back(_dump_score[i][j]);
+			chains.push_back(_dump_chain[i][j]);
+		}
+		RSORT(scores);
+		RSORT(chains);
+
+		double score_threshold = -DBL_MAX;
+		int chain_threshold = INT_MIN;
+
+		if (_dump[i].size() >= 1000)
+		{
+			score_threshold = scores[1000];
+			chain_threshold = chains[1000];
+		}
+		
 		cerr << i << " : " << _dump[i].size() << endl;
 		ss << i << endl;
 		ss << _dump[i].size() << endl;
 
 		for (int j = 0; j < _dump[i].size(); j++)
 		{
+			if (_dump_score[i][j] < score_threshold && _dump_chain[i][j] < chain_threshold)
+			{
+				continue;
+			}
+
 			State& state = _dump[i][j];
 
 			ull check;
@@ -1029,6 +1054,8 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 				ss << endl;
 			}
 		}
+
+		ss << -1 << endl;
 	}
 	ofstream ofs("C:/project/codevs2019/codevs/dump.txt");
 	ofs << ss.str();

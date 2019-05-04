@@ -195,9 +195,11 @@ namespace viewer
 				var logs = new List<Log>();
 
 				int count = int.Parse(sr.ReadLine());
-				for (int i = 0; i < count; i++)
+				//for (int i = 0; i < count; i++)
+				while (true)
 				{
 					var turn = int.Parse(sr.ReadLine());
+					if (turn == -1) break;
 					var local_chain = int.Parse(sr.ReadLine());
 					var drop_x = int.Parse(sr.ReadLine());
 					var score = double.Parse(sr.ReadLine());
@@ -244,7 +246,8 @@ namespace viewer
 					log.SetMap(log.Map, false);
 				}
 
-				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + logs.Count);
+				//listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + logs.Count);
+				listBoxChain.Items.Add(chain.ToString().PadLeft(2) + " : " + count);
 			}
 
 			sr.Close();
