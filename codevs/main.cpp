@@ -499,6 +499,21 @@ public:
 
 			for (int n = 1; n <= 9; n++)
 			{
+				bool is_run = false;
+				for (int d = 0; d < 8; d++)
+				{
+					int dx = x + _dx[d];
+					int dy = drop_y + _dy[d];
+					if (!IsIn(dx, dy)) continue;
+					int sum = n + Get(dx, dy);
+					if (sum == 10)
+					{
+						is_run = true;
+						break;
+					}
+				}
+				if (!is_run) continue;
+
 				State state = *this;
 				state.DropBlock(x, drop_y, n);
 
