@@ -294,19 +294,24 @@ public:
 		}
 	}
 
-	ull pext(ull val, ull mask)
+	void DropBit(int x)
 	{
-		int shift = 0;
-		ull ret = 0;
-		for (int i = 0; i < 16; i++)
+		int h = GetHeight(x);
+		ull n = 0;
+		int offset = 0;
+		for (int i = 0; i < h; i++)
 		{
-			if ((mask >> (i * 4)) & 1)
+			ull b = (map[x] & ((ull)mask4 << (i * 4)));
+			if (b == 0)
 			{
-				ret |= (((val >> (i * 4)) & mask4) << shift);
-				shift += 4;
+				offset += 4;
+			}
+			else
+			{
+				n |= (b >> offset);
 			}
 		}
-		return ret;
+		map[x] = n;
 	}
 
 	//ull pext(ull val, ll mask)
@@ -339,8 +344,6 @@ public:
 			static int qx[WIDTH * HEIGHT];
 			static int qy[WIDTH * HEIGHT];
 			int q_cnt = 0;
-
-			ull erase_bit[WIDTH] = {};
 
 			for (int x = 0; x < WIDTH; x++)
 			{
@@ -392,7 +395,6 @@ public:
 				}
 
 				map[x] &= (~((ull)mask4 << shift));
-				erase_bit[x] |= ((ull)mask4 << shift);
 			}
 
 #ifdef PRINT_RENSA
@@ -401,7 +403,7 @@ public:
 
 			for (int x = 0; x < WIDTH; x++)
 			{
-				map[x] = pext(map[x], ~erase_bit[x]);
+				DropBit(x);
 			}
 
 #ifdef PRINT_RENSA
