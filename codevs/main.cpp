@@ -131,9 +131,7 @@ public:
 	int erase_min_x;
 	int erase_max_x;
 
-	array<byte, MAX_TURN> pos_history;
-	array<byte, MAX_TURN> rot_history;
-	array<byte, MAX_TURN> chain_history;
+	array<int, MAX_TURN> history; //pos:4 rot:4 chain:8
 
 	double score;
 	bool operator < (const State& obj) const
@@ -823,6 +821,8 @@ int GetRealChain(State& state, int turn)
 //#define HASH_TEST
 //#define DUMP_TEST
 
+
+
 State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *out_best_chain)
 {
 #ifdef DUMP_TEST
@@ -919,9 +919,9 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 					int chain = clone.Put(_blocks[_turn + t], pos, rot);
 					_loop++;
 
-					clone.pos_history[t] = pos;
-					clone.rot_history[t] = rot;
-					clone.chain_history[t] = 0;
+					clone.history[t] = pos;
+					clone.history[t] |= (rot << 4);
+					//clone.chain_history[t] = 0;
 
 					ull hash = clone.GetHash();
 					if (_hash[t].find(hash) != _hash[t].end())
@@ -956,7 +956,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 						clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain, &erase_min_x, &erase_max_x);
 						clone.prev_drop_x = drop_x;
-						clone.chain_history[t] = score_chain;
+						clone.history[t] = (score_chain << 8);
 						clone.erase_min_x = erase_min_x;
 						clone.erase_max_x = erase_max_x;
 
@@ -995,9 +995,9 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 							//	q[t + 1].push(clone);
 							//}
 
-							if (t >= 2 && clone.chain_history[t - 2] >= score_chain)
+							if (t >= 2 && (clone.history[t - 2] >> 8) >= score_chain)
 							{
-								int sub = clone.chain_history[t - 2] - score_chain;
+								int sub = (clone.history[t - 2] >> 8) - score_chain;
 								clone.score -= 1000.0 * sub;
 							}
 
@@ -1107,8 +1107,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 		else
 		{
 			_infos[0].state.score = 0.0;
-			_infos[0].state.pos_history[0] = 0;
-			_infos[0].state.rot_history[0] = 0;
+			_infos[0].state.history[0] = 0;
 			return _infos[0].state;
 		}
 	}
@@ -1180,8 +1179,8 @@ State AllSearch(State& org_state, int rest_turn, int* play_turn, int* play_chain
 
 				int chain = clone.Put(_blocks[_turn + turn], pos, rot);
 
-				clone.pos_history[turn] = pos;
-				clone.rot_history[turn] = rot;
+				clone.history[turn] = pos;
+				clone.history[turn] |= (rot << 4);
 
 				if (clone.ojama >= 10)
 				{
@@ -1638,8 +1637,10 @@ int main()
 		NextPlayState(time_limit, target_chain);
 
 		//end
-		cout << (int)_play_state.pos_history[_play_turn] << " " << (int)_play_state.rot_history[_play_turn] << endl;
-		work_state.Put(_blocks[_turn], _play_state.pos_history[_play_turn], _play_state.rot_history[_play_turn]);
+		int pos = (_play_state.history[_play_turn] & mask4);
+		int rot = ((_play_state.history[_play_turn] >> 4) & mask4);
+		cout << pos << " " << rot << endl;
+		work_state.Put(_blocks[_turn], pos, rot);
 
 		if (work_state.ojama >= 10)
 		{
