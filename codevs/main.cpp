@@ -956,7 +956,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 
 						clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain, &erase_min_x, &erase_max_x);
 						clone.prev_drop_x = drop_x;
-						clone.history[t] = (score_chain << 8);
+						clone.history[t] |= (score_chain << 8);
 						clone.erase_min_x = erase_min_x;
 						clone.erase_max_x = erase_max_x;
 
