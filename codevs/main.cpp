@@ -223,7 +223,12 @@ public:
 
 		if (can_drop)
 		{
-			int chain = Submit(check);
+			int erase_cnt;
+			int erase_min_x;
+			int erase_max_x;
+			
+			int chain = Submit(check, &erase_cnt, &erase_min_x, &erase_max_x);
+
 			if (chain >= 1)
 			{
 				skill += SKILL_GAIN;
@@ -325,15 +330,12 @@ public:
 	//	return res;
 	//}
 
-	int Submit(ull first_check, int *erase_cnt = NULL, int *erase_min_x = NULL, int *erase_max_x = NULL)
+	int Submit(ull first_check, int *erase_cnt, int *erase_min_x, int *erase_max_x)
 	{
 		int chein = 0;
 
-		if (erase_min_x != NULL)
-		{
-			*erase_min_x = WIDTH;
-			*erase_max_x = -1;
-		}
+		*erase_min_x = WIDTH;
+		*erase_max_x = -1;
 
 		ull check = first_check;
 
@@ -380,18 +382,12 @@ public:
 
 				int shift = (y * 4);
 
-				if (erase_cnt != NULL)
+				if (map[x] & ((ull)mask4 << shift))
 				{
-					if (map[x] & ((ull)mask4 << shift))
-					{
-						(*erase_cnt)++;
+					(*erase_cnt)++;
 
-						if (erase_min_x != NULL)
-						{
-							(*erase_min_x) = MIN(x, *erase_min_x);
-							(*erase_max_x) = MAX(x, *erase_max_x);
-						}
-					}
+					(*erase_min_x) = MIN(x, *erase_min_x);
+					(*erase_max_x) = MAX(x, *erase_max_x);
 				}
 
 				map[x] &= (~((ull)mask4 << shift));
@@ -401,7 +397,7 @@ public:
 			Print();
 #endif
 
-			for (int x = 0; x < WIDTH; x++)
+			for (int x = (*erase_min_x); x <= (*erase_max_x); x++)
 			{
 				DropBit(x);
 			}
