@@ -227,8 +227,8 @@ public:
 		if (can_drop)
 		{
 			int erase_cnt;
-			int erase_min_x;
-			int erase_max_x;
+			int erase_min_x = pos;
+			int erase_max_x = pos + 1;
 			
 			int chain = Submit(check, &erase_cnt, &erase_min_x, &erase_max_x);
 
@@ -337,9 +337,6 @@ public:
 	{
 		int chein = 0;
 
-		*erase_min_x = WIDTH;
-		*erase_max_x = -1;
-
 		ull check = first_check;
 
 		while (true)
@@ -350,7 +347,7 @@ public:
 			static int qy[WIDTH * HEIGHT];
 			int q_cnt = 0;
 
-			for (int x = 0; x < WIDTH; x++)
+			for (int x = *erase_min_x; x <= (*erase_max_x); x++)
 			{
 				int bottom = ((check >> (x * 4)) & mask4);
 				if (bottom < mask4)
@@ -518,8 +515,8 @@ public:
 				state.DropBlock(x, drop_y, n);
 
 				int erase = 0;
-				int min_x;
-				int max_x;
+				int min_x = x;
+				int max_x = x;
 				int chain = state.Submit(check, &erase, &min_x, &max_x);
 				if (chain_cnt < chain)
 				{
