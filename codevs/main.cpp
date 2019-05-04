@@ -90,6 +90,9 @@ const int MAX_TURN = 15;
 
 int CHAIN_OJAMA_TABLE[] = { 0,1,2,3,4,6,9,13,18,25,33,45,60,79,105,138,181,237,310,405,528,689,897,1168,1521,1979,2575,3350,4358,5667,7370,9583,12461,16202,21066,27389,35609,46295,60186,78245,101722,132242,171919,223498,290551,377720,491040,638356,829867, };
 
+int _loop = 0;
+int _skip = 0;
+
 bool IsIn(int x, int y)
 {
 	return 0 <= x && x < WIDTH && 0 <= y && y < HEIGHT;
@@ -736,7 +739,15 @@ void Init()
 void Input()
 {
 	cin >> _turn;
-	if (_turn == -1) std::exit(1);
+
+#ifdef LOCAL
+	if (_turn == -1)
+	{
+		cout << _loop << endl;
+		cout << _skip << endl;
+		std::exit(1);
+	}
+#endif
 
 	for (int p = 0; p < 2; p++)
 	{
@@ -835,8 +846,6 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 	int turn_limit = MAX_TURN;
 
 	//loop
-	int loop = 0;
-	int skip = 0;
 	while (true)
 	{
 		ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
@@ -893,7 +902,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 #endif
 
 					int chain = clone.Put(_blocks[_turn + t], pos, rot);
-					loop++;
+					_loop++;
 
 					clone.pos_history[t] = pos;
 					clone.rot_history[t] = rot;
@@ -902,7 +911,7 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 					ull hash = clone.GetHash();
 					if (_hash[t].find(hash) != _hash[t].end())
 					{
-						skip++;
+						_skip++;
 #ifndef HASH_TEST
 						continue;
 #endif
@@ -1060,30 +1069,6 @@ State GetBestState(int time_limit, int target_chain, int *play_best_turn, int *o
 #endif
 
 	*play_best_turn = 0;
-
-	//cout << loop << endl;
-	//cout << skip << endl;
-
-	//int best_turn = -1;
-	//double best_chain_score = 0;
-	//for (int t = 0; t < MAX_TURN; t++)
-	//{
-	//	if (best_chain[t] >= target_chain)
-	//	{
-	//		double score = best_chain[t] / (double)(t + 1);
-	//		if (score > best_chain_score)
-	//		{
-	//			best_chain_score = score;
-	//			best_turn = t;
-	//		}
-	//	}
-	//}
-	//if (best_turn >= 0)
-	//{
-	//	*play_best_turn = best_turn;
-	//	*out_best_chain = best_chain[best_turn];
-	//	return best_state[best_turn];
-	//}
 
 	for (int t = 0; t < MAX_TURN; t++)
 	{
