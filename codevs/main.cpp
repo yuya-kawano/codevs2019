@@ -339,12 +339,15 @@ public:
 
 		ull check = first_check;
 
+		int ldx[] = { 1, 0, -1, 0, 1, 1, -1, -1 };
+		int ldy[] = { 0, 1, 0, -1, 1, -1, 1, -1 };
+		int qx[WIDTH * HEIGHT];
+		int qy[WIDTH * HEIGHT];
+
 		while (true)
 		{
 			ull next = -1;
 
-			static int qx[WIDTH * HEIGHT];
-			static int qy[WIDTH * HEIGHT];
 			int q_cnt = 0;
 
 			for (int x = *erase_min_x; x <= (*erase_max_x); x++)
@@ -357,8 +360,8 @@ public:
 					{
 						for (int d = 0; d < 8; d++)
 						{
-							int dx = x + _dx[d];
-							int dy = y + _dy[d];
+							int dx = x + ldx[d];
+							int dy = y + ldy[d];
 							if (!IsIn(dx, dy)) continue;
 
 							int sum = Get(x, y) + Get(dx, dy);
