@@ -1296,6 +1296,72 @@ int GetOjamaChain(State& org_state, int current_turn, int add_ojama, bool only_r
 	return max_chain;
 }
 
+
+State GetSkillBreakChain(State& org_state, int* play_turn)
+{
+	State best_state = org_state;
+	double best_score = -DBL_MAX;
+	int min_chain = INT_MAX;
+
+	queue<State> q;
+	q.push(best_state);
+
+	for (int t = 0; t < 2; t++)
+	{
+		int q_size = q.size();
+
+		bool is_found = false;
+		for (int i = 0; i < q_size; i++)
+		{
+			State q_state = q.front();
+			q.pop();
+
+			for (int pos = 0; pos < WIDTH - 1; pos++)
+			{
+				for (int rot = 0; rot < 4; rot++)
+				{
+					State clone = q_state;
+
+					clone.history[t] = pos;
+					clone.history[t] |= (rot << 4);
+
+					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
+					if (chain >= 3)
+					{
+						double score = clone.GetScore() - (t * 10000);
+
+						if (chain < min_chain)
+						{
+							min_chain = chain;
+
+							*play_turn = t;
+							best_score = score;
+							best_state = clone;
+						}
+						else if (chain == min_chain)
+						{
+							if (best_score < score)
+							{
+								*play_turn = t;
+								best_score = score;
+								best_state = clone;
+							}
+						}
+					}
+				
+					if (chain >= 0)
+					{
+						q.push(clone);
+					}
+				}
+			}
+		}
+	}
+
+	return best_state;
+}
+
 int GetChain(State& state)
 {
 	int erase_cnt;
@@ -1414,29 +1480,16 @@ void NextPlayState(int time_limit, int target_chain)
 	//ƒXƒLƒ‹‚Â‚Ô‚µ
 	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 2)
 	{
-		if (enemy_skill_rest_turn == 2)
+		int skill_play_turn = -1;
+		State skill_state = GetSkillBreakChain(_infos[0].state, &skill_play_turn);
+		if (skill_play_turn >= 0)
 		{
-			if (ally_nexnex_chain >= SKILL_BREAK_CHAIN)
-			{
-				cerr << "&&& skill break 2 &&&" << endl;
-				_play_turn = 0;
-				_play_turn_rest = ally_nexnex_turn;
-				_play_chain = ally_nexnex_chain;
-				_play_state = ally_nexnex;
-				return;
-			}
-		}
-		else
-		{
-			if (ally_next_chain >= SKILL_BREAK_CHAIN)
-			{
-				cerr << "&&& skill break 1 &&&" << endl;
-				_play_turn = 0;
-				_play_turn_rest = ally_next_turn;
-				_play_chain = ally_next_chain;
-				_play_state = ally_next;
-				return;
-			}
+			cerr << "&&& skill break " << skill_play_turn << " &&&" << endl;
+			_play_turn = 0;
+			_play_turn_rest = skill_play_turn;
+			_play_chain = 3;
+			_play_state = skill_state;
+			return;
 		}
 	}
 
@@ -1561,7 +1614,46 @@ void NextPlayState(int time_limit, int target_chain)
 		cerr << "*** ch:" << _play_chain << " pl:" << best_play_turn << " score:" << fixed << setprecision(4) << _play_state.score << endl;
 		return;
 	}
+}
 
+bool FireSkill()
+{
+	//cerr << "skill:" << _infos[0].state.skill << endl;
+	//cerr << "ojama:" << _infos[0].state.GetSkillOjama() << endl;
+	//cerr << "height:" << ally_max_h << endl;
+
+	if (_infos[0].state.skill >= SKILL_COST)
+	{
+		int ally_max_h = 0;
+		for (int x = 0; x < WIDTH; x++)
+		{
+			int h = _infos[0].state.GetHeight(x);
+			ally_max_h = MAX(ally_max_h, h);
+		}
+
+		if (ally_max_h == HEIGHT - 1)
+		{
+			cout << "S" << endl;
+			return true;
+		}
+
+		int enemy_max_h = 0;
+		for (int x = 0; x < WIDTH; x++)
+		{
+			int h = _infos[1].state.GetHeight(x);
+			enemy_max_h = MAX(enemy_max_h, h);
+		}
+
+		int ojama_h = (_infos[1].state.ojama + _infos[0].state.GetSkillOjama()) / 10;
+
+		if (enemy_max_h + ojama_h >= HEIGHT)
+		{
+			cout << "S" << endl;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 int main()
@@ -1625,11 +1717,15 @@ int main()
 		int target_chain = GetTargetChain();
 
 		//skill‚Ô‚Á‚Ï
-		int skill_oajma = ally_skill + _infos[1].state.ojama;
-		if (_infos[0].state.skill >= SKILL_COST && ALLY_SKILL_THRESHOLD <= skill_oajma && CHAIN_OJAMA_TABLE[ally_chain] <= ally_skill)
+		//int skill_oajma = ally_skill + _infos[1].state.ojama;
+		//if (_infos[0].state.skill >= SKILL_COST && ALLY_SKILL_THRESHOLD <= skill_oajma && CHAIN_OJAMA_TABLE[ally_chain] <= ally_skill)
+		//{
+		//	cerr << "@@@ SKILL @@@" << endl;
+		//	cout << "S" << endl;
+		//	continue;
+		//}
+		if (FireSkill())
 		{
-			cerr << "@@@ SKILL @@@" << endl;
-			cout << "S" << endl;
 			continue;
 		}
 
