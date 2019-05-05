@@ -1473,7 +1473,7 @@ void NextPlayState(int time_limit, int target_chain)
 
 		cerr << "??? MADA " << eneymy_add_oajam << " " << maeru_ally_chain << endl;
 
-		if (_play_chain < maeru_ally_chain && _play_chain < ally_nexnex_chain && target_chain <= ally_next_chain)
+		if (_play_chain < maeru_ally_chain && _play_chain < ally_nexnex_chain)
 		{
 			cerr << "&&& MADA MAERU &&&" << endl;
 			_play_turn = 0;
@@ -1498,19 +1498,19 @@ void NextPlayState(int time_limit, int target_chain)
 	//	}
 	//}
 
-	//Šë‚È‚¢‚Ì‚Å”­‰Î
-	if (enemy_next_chain >= ATTACK_CHAIN)
-	{
-		if (ally_next_chain >= ATTACK_CHAIN)
-		{
-			cerr << "&&& danager fast attack &&&" << endl;
-			_play_turn = 0;
-			_play_turn_rest = ally_next_turn;
-			_play_chain = ally_next_chain;
-			_play_state = ally_next;
-			return;
-		}
-	}
+	////Šë‚È‚¢‚Ì‚Å”­‰Î
+	//if (enemy_next_chain >= ATTACK_CHAIN)
+	//{
+	//	if (ally_next_chain >= ATTACK_CHAIN)
+	//	{
+	//		cerr << "&&& danager fast attack &&&" << endl;
+	//		_play_turn = 0;
+	//		_play_turn_rest = ally_next_turn;
+	//		_play_chain = ally_next_chain;
+	//		_play_state = ally_next;
+	//		return;
+	//	}
+	//}
 
 	//‘‚­Œ‚‚Ä‚é
 	if (_play_turn_rest == 1)
