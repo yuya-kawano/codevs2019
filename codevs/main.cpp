@@ -1550,24 +1550,21 @@ void NextPlayState(int time_limit, int target_chain)
 		}
 	}
 
-	////‚Ü‚¾•‘‚¦‚é
-	//if (_play_turn_rest == 0 && _infos[0].state.ojama < 10 && enemy_skill_rest_turn > 3)
-	//{
-	//	int eneymy_add_oajam = CHAIN_OJAMA_TABLE[enemy_next_chain];
-	//	int maeru_ally_chain = GetOjamaChain(_infos[0].state, eneymy_add_oajam, next_pos, next_rot, true);
+	//‚Ü‚¾•‘‚¦‚é
+	if (_play_turn_rest == 0 && enemy_skill_rest_turn > 3)
+	{
+		cerr << "??? MADA " << enemy_nexnex_chain << " " << ally_nexnex_chain << endl;
 
-	//	cerr << "??? MADA " << eneymy_add_oajam << " " << maeru_ally_chain << endl;
-
-	//	if (_play_chain < maeru_ally_chain && _play_chain < ally_nexnex_chain)
-	//	{
-	//		cerr << "&&& MADA MAERU &&&" << endl;
-	//		_play_turn = 0;
-	//		_play_turn_rest = ally_nexnex_turn;
-	//		_play_chain = ally_nexnex_chain;
-	//		_play_state = ally_nexnex;
-	//		return;
-	//	}
-	//}
+		if (enemy_nexnex_chain < ATTACK_CHAIN && _play_chain < ally_nexnex_chain)
+		{
+			cerr << "&&& MADA MAERU &&&" << endl;
+			_play_turn = 0;
+			_play_turn_rest = ally_nexnex_turn;
+			_play_chain = ally_nexnex_chain;
+			_play_state = ally_nexnex;
+			return;
+		}
+	}
 
 	//if (_play_turn_rest == 0)
 	//{
