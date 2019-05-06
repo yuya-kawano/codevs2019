@@ -1297,7 +1297,7 @@ int GetOjamaChain(State& org_state, int current_turn, int add_ojama, bool only_r
 }
 
 
-State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn)
+State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn, int *play_chain)
 {
 	State best_state = org_state;
 	double best_score = -DBL_MAX;
@@ -1329,7 +1329,7 @@ State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn)
 
 					if (chain >= 3)
 					{
-						double score = clone.GetScore() - (t * 10000);
+						double score = clone.GetScore();
 
 						if (chain < min_chain)
 						{
@@ -1359,6 +1359,7 @@ State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn)
 		}
 	}
 
+	*play_chain = min_chain;
 	return best_state;
 }
 
@@ -1429,6 +1430,26 @@ int _play_turn = -1;
 int _play_turn_rest = -1;
 int _play_chain = 0;
 
+int GetEnemySkillRestTurn()
+{
+	//スキルにかかるターン
+	//81 -> -1
+	//80 -> 0
+	//73 -> 1
+	//72 -> 1
+	//71 -> 2
+	int enemy_skill_rest_turn;
+	if (_infos[1].state.skill >= 80)
+	{
+		enemy_skill_rest_turn = 0;
+	}
+	else
+	{
+		enemy_skill_rest_turn = ((SKILL_COST - _infos[1].state.skill - 1) / SKILL_GAIN) + 1;
+	}
+	return enemy_skill_rest_turn;
+}
+
 void NextPlayState(int time_limit, int target_chain)
 {
 	int ally_next_turn = 0;
@@ -1450,21 +1471,6 @@ void NextPlayState(int time_limit, int target_chain)
 	int ally_skill = _infos[0].state.GetSkillOjama();
 	int enemy_skill = _infos[1].state.GetSkillOjama();
 
-	//スキルにかかるターン
-	//81 -> -1
-	//80 -> 0
-	//73 -> 1
-	//72 -> 1
-	//71 -> 2
-	int enemy_skill_rest_turn;
-	if (_infos[1].state.skill >= 80)
-	{
-		enemy_skill_rest_turn = 0;
-	}
-	else
-	{
-		enemy_skill_rest_turn = ((SKILL_COST - _infos[1].state.skill - 1) / SKILL_GAIN) + 1;
-	}
 
 	//もう十分じゃ
 	if (ally_next_chain >= KILL_CHAIN)
@@ -1477,17 +1483,59 @@ void NextPlayState(int time_limit, int target_chain)
 		return;
 	}
 
-	//スキルつぶし
-	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 3)
+	//スキルにかかるターン
+	int enemy_skill_rest_turn = GetEnemySkillRestTurn();
+
+	//スキル用target_chain
+	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 2)
+	{
+		cerr << "=== skill update chain : 3 ===" << endl;
+		target_chain = 3;
+	}
+
+	//スキルつぶし1
+	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 2)
+	{
+		if (enemy_skill_rest_turn == 2)
+		{
+			if (ally_nexnex_chain >= ATTACK_CHAIN)
+			{
+				cerr << "&&& skill break 1.1 &&&" << endl;
+				_play_turn = 0;
+				_play_turn_rest = ally_nexnex_turn;
+				_play_chain = ally_nexnex_chain;
+				_play_state = ally_nexnex;
+				return;
+			}
+		}
+		else
+		{
+			if (ally_next_chain >= ATTACK_CHAIN)
+			{
+				cerr << "&&& skill break 1.2 &&&" << endl;
+				_play_turn = 0;
+				_play_turn_rest = ally_next_turn;
+				_play_chain = ally_next_chain;
+				_play_state = ally_next;
+				return;
+			}
+		}
+	}
+
+	//スキルつぶし2
+	//cerr << "??? skill break " << enemy_skill << " " << enemy_skill_rest_turn << " " << _play_turn_rest << " " << _play_chain << " " << endl;
+	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 3 && (enemy_skill_rest_turn < (_play_turn_rest + 1) || _play_chain < 3 || _play_turn_rest == -1))
 	{
 		int skill_play_turn = -1;
-		State skill_state = GetSkillBreakChain(_infos[0].state, enemy_skill_rest_turn, &skill_play_turn);
+		int skill_play_chain = -1;
+		State skill_state = GetSkillBreakChain(_infos[0].state, enemy_skill_rest_turn, &skill_play_turn, &skill_play_chain);
+		//cerr << "??? skill break2 " << skill_play_turn << endl;
 		if (skill_play_turn >= 0)
 		{
-			cerr << "&&& skill break " << skill_play_turn << " &&&" << endl;
+			cerr << "&&& skill break 2 : " << skill_play_turn << " &&&" << endl;
 			_play_turn = 0;
 			_play_turn_rest = skill_play_turn;
-			_play_chain = 3;
+			_play_chain = skill_play_chain;
 			_play_state = skill_state;
 			return;
 		}
@@ -1519,7 +1567,7 @@ void NextPlayState(int time_limit, int target_chain)
 	}
 
 	//まだ舞える
-	if (_play_turn_rest == 0 && _infos[0].state.ojama < 10)
+	if (_play_turn_rest == 0 && _infos[0].state.ojama < 10 && enemy_skill_rest_turn > 3)
 	{
 		int eneymy_add_oajam = CHAIN_OJAMA_TABLE[enemy_next_chain];
 		int maeru_ally_chain = GetOjamaChain(_infos[0].state, 2, eneymy_add_oajam, true);
@@ -1622,7 +1670,9 @@ bool FireSkill()
 	//cerr << "ojama:" << _infos[0].state.GetSkillOjama() << endl;
 	//cerr << "height:" << ally_max_h << endl;
 
-	if (_infos[0].state.skill >= SKILL_COST)
+	int enemy_rest = GetEnemySkillRestTurn();
+
+	if (_infos[0].state.skill >= SKILL_COST && enemy_rest >= 2)
 	{
 		int ally_max_h = 0;
 		for (int x = 0; x < WIDTH; x++)
@@ -1631,7 +1681,7 @@ bool FireSkill()
 			ally_max_h = MAX(ally_max_h, h);
 		}
 
-		if (ally_max_h == HEIGHT - 1)
+		if (ally_max_h >= HEIGHT)
 		{
 			cout << "S" << endl;
 			return true;
@@ -1646,7 +1696,7 @@ bool FireSkill()
 
 		int ojama_h = (_infos[1].state.ojama + _infos[0].state.GetSkillOjama()) / 10;
 
-		if (enemy_max_h + ojama_h >= HEIGHT)
+		if (enemy_max_h + ojama_h > HEIGHT)
 		{
 			cout << "S" << endl;
 			return true;
@@ -1697,11 +1747,15 @@ int main()
 		{
 			time_limit = 18000;
 		}
+		else if (_infos[0].time <= 20000)
+		{
+			time_limit = 500;
+		}
+
 		else if (_infos[0].time <= 100000)
 		{
 			time_limit = 5000;
 		}
-
 		//is_match
 		if (_play_turn_rest >= 0 && !IsMatch(_infos[0].state.map, work_state.map))
 		{
