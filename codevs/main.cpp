@@ -1297,7 +1297,7 @@ int GetOjamaChain(State& org_state, int current_turn, int add_ojama, bool only_r
 }
 
 
-State GetSkillBreakChain(State& org_state, int* play_turn)
+State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn)
 {
 	State best_state = org_state;
 	double best_score = -DBL_MAX;
@@ -1306,7 +1306,7 @@ State GetSkillBreakChain(State& org_state, int* play_turn)
 	queue<State> q;
 	q.push(best_state);
 
-	for (int t = 0; t < 2; t++)
+	for (int t = 0; t < rest_turn; t++)
 	{
 		int q_size = q.size();
 
@@ -1478,10 +1478,10 @@ void NextPlayState(int time_limit, int target_chain)
 	}
 
 	//ƒXƒLƒ‹‚Â‚Ô‚µ
-	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 2)
+	if (enemy_skill >= DANGER_SKILL_DAMAGE && enemy_skill_rest_turn <= 3)
 	{
 		int skill_play_turn = -1;
-		State skill_state = GetSkillBreakChain(_infos[0].state, &skill_play_turn);
+		State skill_state = GetSkillBreakChain(_infos[0].state, enemy_skill_rest_turn, &skill_play_turn);
 		if (skill_play_turn >= 0)
 		{
 			cerr << "&&& skill break " << skill_play_turn << " &&&" << endl;
