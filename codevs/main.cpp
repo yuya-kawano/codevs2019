@@ -1352,6 +1352,15 @@ State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn, int *p
 				
 					if (chain >= 0)
 					{
+						if (clone.ojama >= 10)
+						{
+							if (clone.Ojama())
+							{
+								continue;
+							}
+							clone.ojama -= 10;
+						}
+
 						q.push(clone);
 					}
 				}
