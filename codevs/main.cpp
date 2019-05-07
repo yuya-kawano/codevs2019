@@ -1688,6 +1688,147 @@ bool FireSkill()
 	return false;
 }
 
+void SkillMove()
+{
+	int ally_max_h = 0;
+	for (int x = 0; x < WIDTH; x++)
+	{
+		int h = _infos[0].state.GetHeight(x);
+		ally_max_h = MAX(ally_max_h, h);
+	}
+
+	cerr << "skill:" << _infos[0].state.skill << endl;
+	cerr << "ojama:" << _infos[0].state.GetSkillOjama() << endl;
+	cerr << "height:" << ally_max_h << endl;
+
+	if (_infos[0].state.skill >= SKILL_COST)
+	{
+		int ally_max_h = 0;
+		for (int x = 0; x < WIDTH; x++)
+		{
+			int h = _infos[0].state.GetHeight(x);
+			ally_max_h = MAX(ally_max_h, h);
+		}
+
+		if (ally_max_h >= HEIGHT)
+		{
+			cout << "S" << endl;
+			return;
+		}
+
+		int enemy_max_h = 0;
+		for (int x = 0; x < WIDTH; x++)
+		{
+			int h = _infos[1].state.GetHeight(x);
+			enemy_max_h = MAX(enemy_max_h, h);
+		}
+
+		int ojama_h = (_infos[1].state.ojama + _infos[0].state.GetSkillOjama()) / 10;
+
+		if (enemy_max_h + ojama_h > HEIGHT)
+		{
+			cout << "S" << endl;
+			return;
+		}
+	}
+
+	//Move
+	int max_pos = 0;
+	int max_rot = 0;
+	double max_score = -DBL_MAX;
+
+	queue<State> q;
+	q.push(_infos[0].state);
+
+	for (int t = 0; t < 3; t++)
+	{
+		int q_size = q.size();
+
+		for (int i = 0; i < q_size; i++)
+		{
+			State q_state = q.front();
+			q.pop();
+
+			for (int pos = 0; pos < WIDTH - 1; pos++)
+			{
+				for (int rot = 0; rot < 4; rot++)
+				{
+					State clone = q_state;
+
+					clone.history[t] = pos;
+					clone.history[t] |= (rot << 4);
+
+					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
+					if (chain >= 0)
+					{
+						double score = 0;
+
+						if (chain >= 1)
+						{
+							clone.skill = MIN(100, clone.skill + 8);
+						}
+
+						int max_h = 0;
+						for (int x = 0; x < WIDTH; x++)
+						{
+							int h = clone.GetHeight(x);
+							max_h = MAX(max_h, h);
+						}
+
+						if (t == 2)
+						{
+							int ojama = clone.GetSkillOjama();
+							score += ojama * 100;
+
+							if (ojama <= 50)
+							{
+								score += clone.skill;
+							}
+							else
+							{
+								score += clone.skill * 10000;
+							}
+
+							int block_cnt = 0;
+							for (int x = 0; x < WIDTH; x++)
+							{
+								for (int y = 0; y < HEIGHT; y++)
+								{
+									if (clone.Get(x, y) > 0)
+									{
+										block_cnt++;
+									}
+								}
+							}
+
+							score += block_cnt;
+							score -= max_h * 1;
+							if (max_h >= HEIGHT / 2)
+							{
+								score -= 100000.0 * max_h;
+							}
+
+							if (score > max_score)
+							{
+								max_score = score;
+								max_pos = (clone.history[0] & mask4);
+								max_rot = ((clone.history[0] >> 4) & mask4);
+							}
+						}
+						else
+						{
+							q.push(clone);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	cout << max_pos << " " << max_rot << endl;
+}
+
 int main()
 {
 	cout << "y_kawano" << endl;
@@ -1696,9 +1837,18 @@ int main()
 	State work_state;
 	memset(_play_state.map, -1, sizeof(_play_state.map));
 
+	bool skill_mode = false;
+	int tsumi_cnt = 0;
+
 	while (true)
 	{
 		Input();
+
+		if (skill_mode)
+		{
+			SkillMove();
+			continue;
+		}
 
 		cerr << endl;
 
@@ -1753,13 +1903,6 @@ int main()
 		int target_chain = GetTargetChain();
 
 		//skill‚Ô‚Á‚Ï
-		//int skill_oajma = ally_skill + _infos[1].state.ojama;
-		//if (_infos[0].state.skill >= SKILL_COST && ALLY_SKILL_THRESHOLD <= skill_oajma && CHAIN_OJAMA_TABLE[ally_chain] <= ally_skill)
-		//{
-		//	cerr << "@@@ SKILL @@@" << endl;
-		//	cout << "S" << endl;
-		//	continue;
-		//}
 		if (FireSkill())
 		{
 			continue;
@@ -1767,6 +1910,22 @@ int main()
 
 		//update_state
 		NextPlayState(time_limit, target_chain);
+
+		//‹l‚Ý
+		if (_play_chain == 0)
+		{
+			tsumi_cnt++;
+		}
+		else
+		{
+			tsumi_cnt = 0;
+		}
+		if (tsumi_cnt >= 3)
+		{
+			skill_mode = true;
+			SkillMove();
+			continue;
+		}
 
 		//end
 		int pos = (_play_state.history[_play_turn] & mask4);
