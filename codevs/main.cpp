@@ -1654,7 +1654,7 @@ bool FireSkill()
 
 	int enemy_rest = GetEnemySkillRestTurn();
 
-	if (_infos[0].state.skill >= SKILL_COST && enemy_rest >= 2)
+	if (_infos[0].state.skill >= SKILL_COST && enemy_rest >= 3)
 	{
 		int ally_max_h = 0;
 		for (int x = 0; x < WIDTH; x++)
