@@ -1688,6 +1688,8 @@ bool FireSkill()
 	return false;
 }
 
+bool _skill_mode = false;
+
 void SkillMove()
 {
 	int ally_max_h = 0;
@@ -1728,6 +1730,7 @@ void SkillMove()
 		if (enemy_max_h + ojama_h > HEIGHT)
 		{
 			cout << "S" << endl;
+			_skill_mode = false;
 			return;
 		}
 	}
@@ -1837,14 +1840,13 @@ int main()
 	State work_state;
 	memset(_play_state.map, -1, sizeof(_play_state.map));
 
-	bool skill_mode = false;
 	int tsumi_cnt = 0;
 
 	while (true)
 	{
 		Input();
 
-		if (skill_mode)
+		if (_skill_mode)
 		{
 			SkillMove();
 			continue;
@@ -1922,7 +1924,7 @@ int main()
 		}
 		if (tsumi_cnt >= 3)
 		{
-			skill_mode = true;
+			_skill_mode = true;
 			SkillMove();
 			continue;
 		}
