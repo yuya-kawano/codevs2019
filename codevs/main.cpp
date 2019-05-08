@@ -1279,7 +1279,7 @@ State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn, int *p
 
 	for (int t = 0; t < rest_turn; t++)
 	{
-		int q_size = q.size();
+		int q_size = (int)q.size();
 
 		bool is_found = false;
 		for (int i = 0; i < q_size; i++)
@@ -1912,7 +1912,7 @@ void SkillMove()
 
 	for (int t = 0; t < 3; t++)
 	{
-		int q_size = q.size();
+		int q_size = (int)q.size();
 
 		for (int i = 0; i < q_size; i++)
 		{
@@ -1929,6 +1929,15 @@ void SkillMove()
 					clone.history[t] |= (rot << 4);
 
 					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
+					if (clone.ojama >= 10)
+					{
+						if (clone.Ojama())
+						{
+							continue;
+						}
+						clone.ojama -= 10;
+					}
 
 					if (chain >= 0)
 					{
