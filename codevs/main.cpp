@@ -1430,6 +1430,154 @@ int GetEnemySkillRestTurn()
 	return enemy_skill_rest_turn;
 }
 
+
+
+int GetCounterChain(State& org_state, int time_limit, int turn_limit, int target_chain)
+{
+	unordered_set<ull> _hash[MAX_TURN];
+
+	time_point<system_clock> start_time = system_clock::now();
+	priority_queue<State> q[MAX_TURN + 1];
+
+	org_state.prev_drop_x = -1;
+	org_state.erase_min_x = 0;
+	org_state.erase_max_x = WIDTH - 1;
+
+	q[0].push(org_state);
+
+	State best_state[MAX_TURN];
+	int best_chain[MAX_TURN] = {};
+	double best_score[MAX_TURN] = {};
+
+	State emergency_state;
+	emergency_state.score = -DBL_MAX;
+
+	int max_chain = 0;
+
+	//loop
+	while (true)
+	{
+		ll ms = duration_cast<milliseconds>(system_clock::now() - start_time).count();
+		if (ms >= time_limit)
+		{
+			break;
+		}
+
+		bool has_update = false;
+		for (int t = 0; t < turn_limit; t++)
+		{
+			if (q[t].size() == 0) continue;
+			has_update = true;
+
+			State state = q[t].top();
+			q[t].pop();
+
+			int drop_min_x = MAX(0, state.erase_min_x - 2);
+			int drop_max_x = MIN(WIDTH - 2, state.erase_max_x + 1);
+
+			if (_turn == 0 && t == 0)
+			{
+				drop_min_x = 4;
+				drop_max_x = 4;
+			}
+
+			for (int pos = drop_min_x; pos <= drop_max_x; pos++)
+			{
+				for (int rot = 0; rot < 4; rot++)
+				{
+					State clone = state;
+
+					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+					_loop++;
+
+					clone.history[t] = pos;
+					clone.history[t] |= (rot << 4);
+
+					ull hash = clone.GetHash();
+					if (_hash[t].find(hash) != _hash[t].end())
+					{
+						_skip++;
+					}
+					_hash[t].insert(hash);
+
+					if (clone.ojama >= 10)
+					{
+						if (clone.Ojama())
+						{
+							continue;
+						}
+						clone.ojama -= 10;
+					}
+
+					if (chain >= target_chain)
+					{
+						turn_limit = t + 1;
+					}
+
+					if (chain >= 0)
+					{
+						max_chain = MAX(chain, max_chain);
+
+						int drop_x;
+						int score_chain;
+						int erase_min_x;
+						int erase_max_x;
+
+						clone.score = clone.GetScore(clone.prev_drop_x, &drop_x, &score_chain, &erase_min_x, &erase_max_x);
+						clone.prev_drop_x = drop_x;
+						clone.history[t] |= (score_chain << 8);
+						clone.erase_min_x = erase_min_x;
+						clone.erase_max_x = erase_max_x;
+
+						if (best_chain[t] < chain || (best_chain[t] == chain && best_score[t] < clone.score))
+						{
+							best_state[t] = clone;
+							best_chain[t] = chain;
+							best_score[t] = clone.score;
+						}
+
+						if (drop_x < 0)
+						{
+							clone.erase_min_x = pos;
+							clone.erase_max_x = pos + 1;
+						}
+
+						if (emergency_state.score < clone.score)
+						{
+							emergency_state = clone;
+						}
+
+						if (chain <= 1)
+						{
+							if (t >= 2 && (clone.history[t - 2] >> 8) >= score_chain)
+							{
+								int sub = (clone.history[t - 2] >> 8) - score_chain;
+								clone.score -= 1000.0 * sub;
+							}
+
+							if (t + 1 == turn_limit)
+							{
+								q[MAX_TURN].push(clone);
+							}
+							else
+							{
+								q[t + 1].push(clone);
+							}
+						}
+					}
+				}
+			}
+		}
+		if (!has_update)
+		{
+			break;
+		}
+	}
+
+	return max_chain;
+}
+
+
 void NextPlayState(int time_limit, int target_chain)
 {
 	int ally_next_turn = 0;
@@ -1450,6 +1598,25 @@ void NextPlayState(int time_limit, int target_chain)
 
 	int ally_skill = _infos[0].state.GetSkillOjama();
 	int enemy_skill = _infos[1].state.GetSkillOjama();
+
+
+	//カウンター警戒
+	if (_play_chain >= ATTACK_CHAIN && _play_turn_rest == 0 && enemy_next_chain < ATTACK_CHAIN)
+	{
+		State counter_state = _infos[1].state;
+		counter_state.ojama += CHAIN_OJAMA_TABLE[_play_chain];
+
+		int enemy_chain = GetCounterChain(counter_state, 1000, 7, INT_MAX);
+		int ally_chain = GetCounterChain(_infos[0].state, 1000, 7, INT_MAX);
+
+		cerr << "??? counter " << enemy_chain << " " << ally_chain << endl;
+
+		if (enemy_chain > _play_chain && ally_chain >= enemy_chain)
+		{
+			cerr << "=== counter update chain : " << ally_chain << " ===" << endl;
+			target_chain = ally_chain;
+		}
+	}
 
 
 	//もう十分じゃ
