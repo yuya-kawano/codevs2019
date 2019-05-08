@@ -1846,7 +1846,7 @@ void NextPlayState(int time_limit, int target_chain)
 				cerr << "??? chain break " << enemy_nexnex_chain << " -> " << ojama_chain << endl;
 			}
 
-			if (enemy_nexnex_chain >= ATTACK_CHAIN && ojama_chain <= CHAIN_BREAK_CHAIN)
+			if (enemy_nexnex_chain >= ATTACK_CHAIN && enemy_nexnex_chain > ally_nexnex_chain && ojama_chain <= CHAIN_BREAK_CHAIN)
 			{
 				cerr << "&&& chain break &&&" << endl;
 				_play_turn = 0;
