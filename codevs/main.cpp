@@ -1620,7 +1620,7 @@ void NextPlayState(int time_limit, int target_chain)
 
 
 	//‚à‚¤\•ª‚¶‚á
-	if (ally_next_chain >= KILL_CHAIN)
+	if (ally_next_chain >= KILL_CHAIN && ally_next_chain >= target_chain)
 	{
 		cerr << "&&& kill attack &&&" << endl;
 		_play_turn = 0;
