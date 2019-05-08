@@ -1268,6 +1268,62 @@ int GetOjamaChain(State& org_state, int add_ojama, int next_pos, int next_rot, b
 }
 
 
+int GetOjamaChainEnemy(State& org_state, int add_ojama)
+{
+	int max_chain = 0;
+
+	queue<State> q;
+	q.push(org_state);
+
+	for (int t = 0; t < 2; t++)
+	{
+		int q_size = (int)q.size();
+
+		for (int i = 0; i < q_size; i++)
+		{
+			State q_state = q.front();
+			q.pop();
+
+			for (int pos = 0; pos < WIDTH - 1; pos++)
+			{
+				for (int rot = 0; rot < 4; rot++)
+				{
+					State clone = q_state;
+					int chain = clone.Put(_blocks[_turn + t], pos, rot);
+
+					if (chain >= 0)
+					{
+						if (max_chain < chain)
+						{
+							max_chain = chain;
+						}
+
+						if (t == 0)
+						{
+							clone.ojama += add_ojama;
+						}
+
+						if (clone.ojama >= 10)
+						{
+							if (clone.Ojama())
+							{
+								continue;
+							}
+							clone.ojama -= 10;
+						}
+
+						q.push(clone);
+					}
+				}
+			}
+		}
+	}
+
+	return max_chain;
+}
+
+
+
 State GetSkillBreakChain(State& org_state, int rest_turn, int* play_turn, int *play_chain)
 {
 	State best_state = org_state;
@@ -1776,25 +1832,31 @@ void NextPlayState(int time_limit, int target_chain)
 		}
 	}
 
-	////òAçΩÇ¬Ç‘Çµ
-	//if (_infos[1].state.ojama < 10)
-	//{
-	//	int add_ojama = CHAIN_OJAMA_TABLE[ally_next_chain];
-	//	int next_ojama = _infos[1].state.ojama + add_ojama;
-	//	if (next_ojama >= 10)
-	//	{
-	//		int ojama_chain = GetOjamaChain(_infos[1].state, 2, add_ojama, false);
-	//		if (enemy_nexnex_chain >= ATTACK_CHAIN && ojama_chain <= CHAIN_BREAK_CHAIN)
-	//		{
-	//			cerr << "&&& chain break &&&" << endl;
-	//			_play_turn = 0;
-	//			_play_turn_rest = ally_next_turn;
-	//			_play_chain = ally_next_chain;
-	//			_play_state = ally_next;
-	//			return;
-	//		}
-	//	}
-	//}
+	//òAçΩÇ¬Ç‘Çµ
+	if (_infos[1].state.ojama < 10)
+	{
+		int add_ojama = CHAIN_OJAMA_TABLE[ally_next_chain];
+		int next_ojama = _infos[1].state.ojama + add_ojama;
+		if (next_ojama >= 10)
+		{
+			int ojama_chain = GetOjamaChainEnemy(_infos[1].state, add_ojama);
+
+			if (enemy_nexnex_chain >= ATTACK_CHAIN)
+			{
+				cerr << "??? chain break " << enemy_nexnex_chain << " -> " << ojama_chain << endl;
+			}
+
+			if (enemy_nexnex_chain >= ATTACK_CHAIN && ojama_chain <= CHAIN_BREAK_CHAIN)
+			{
+				cerr << "&&& chain break &&&" << endl;
+				_play_turn = 0;
+				_play_turn_rest = ally_next_turn;
+				_play_chain = ally_next_chain;
+				_play_state = ally_next;
+				return;
+			}
+		}
+	}
 
 	//çƒåvéZ
 	if (_play_turn_rest < 0 || _play_chain < target_chain)
