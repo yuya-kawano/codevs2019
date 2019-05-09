@@ -1833,7 +1833,7 @@ void NextPlayState(int time_limit, int target_chain)
 	}
 
 	//˜A½‚Â‚Ô‚µ
-	if (_infos[1].state.ojama < 10)
+	if (_infos[1].state.ojama < 10 && enemy_nexnex_chain > ally_nexnex_chain && enemy_nexnex_chain >= ATTACK_CHAIN)
 	{
 		int add_ojama = CHAIN_OJAMA_TABLE[ally_next_chain];
 		int next_ojama = _infos[1].state.ojama + add_ojama;
@@ -1841,12 +1841,14 @@ void NextPlayState(int time_limit, int target_chain)
 		{
 			int ojama_chain = GetOjamaChainEnemy(_infos[1].state, add_ojama);
 
+			int next_chain_cnt = ally_next.GetChainCount();
+
 			if (enemy_nexnex_chain >= ATTACK_CHAIN)
 			{
-				cerr << "??? chain break " << enemy_nexnex_chain << " -> " << ojama_chain  << " : " << ally_nexnex_chain << endl;
+				cerr << "??? chain break " << enemy_nexnex_chain << " -> " << ojama_chain  << " : " << ally_nexnex_chain << " : " << next_chain_cnt << endl;
 			}
 
-			if (enemy_nexnex_chain >= ATTACK_CHAIN && enemy_nexnex_chain > ally_nexnex_chain && ojama_chain <= CHAIN_BREAK_CHAIN)
+			if (ojama_chain <= CHAIN_BREAK_CHAIN || (ojama_chain < ATTACK_CHAIN && ojama_chain < next_chain_cnt))
 			{
 				cerr << "&&& chain break &&&" << endl;
 				_play_turn = 0;
