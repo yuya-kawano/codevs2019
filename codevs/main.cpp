@@ -1669,7 +1669,7 @@ void NextPlayState(int time_limit, int target_chain)
 
 		if (enemy_chain > _play_chain)
 		{
-			cerr << "=== counter update chain : " << ally_chain << " ===" << endl;
+			cerr << "=== counter update chain : " << enemy_chain << " ===" << endl;
 			target_chain = enemy_chain;
 		}
 	}
