@@ -1307,7 +1307,7 @@ int GetOjamaChainEnemy(State& org_state, int add_ojama)
 						{
 							if (clone.Ojama())
 							{
-								continue;
+								//continue; ‚±‚±‚Å‚ÍI‚í‚ç‚¹‚È‚¢
 							}
 							clone.ojama -= 10;
 						}
@@ -1676,7 +1676,7 @@ void NextPlayState(int time_limit, int target_chain)
 
 
 	//‚à‚¤\•ª‚¶‚á
-	if (ally_next_chain >= KILL_CHAIN && ally_next_chain >= target_chain)
+	if (ally_next_chain >= KILL_CHAIN && ally_next_chain >= MAX(target_chain, _play_chain))
 	{
 		cerr << "&&& kill attack &&&" << endl;
 		_play_turn = 0;
