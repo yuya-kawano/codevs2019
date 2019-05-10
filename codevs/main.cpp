@@ -1663,9 +1663,11 @@ void NextPlayState(int time_limit, int target_chain)
 		counter_state.ojama += CHAIN_OJAMA_TABLE[_play_chain];
 
 		int enemy_chain = GetCounterChain(counter_state, 1000, 7, INT_MAX);
-		int ally_chain = GetCounterChain(_infos[0].state, 1000, 7, INT_MAX);
 
-		cerr << "??? counter " << ally_chain << " " << enemy_chain << endl;
+		//int ally_chain = GetCounterChain(_infos[0].state, 1000, 7, INT_MAX);
+		//cerr << "??? counter " << ally_chain << " " << enemy_chain << endl;
+
+		cerr << "??? counter " << enemy_chain << endl;
 
 		if (enemy_chain > _play_chain)
 		{
