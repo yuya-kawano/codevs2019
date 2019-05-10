@@ -2127,11 +2127,11 @@ int main()
 		{
 			time_limit = 500;
 		}
-
-		else if (_infos[0].time <= 100000)
+		else if (_infos[0].time <= 80000)
 		{
 			time_limit = 5000;
 		}
+
 		//is_match
 		if (_play_turn_rest >= 0 && !IsMatch(_infos[0].state.map, work_state.map))
 		{
